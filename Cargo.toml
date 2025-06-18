@@ -1,0 +1,27 @@
+[package]
+name = "pyvismil"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+plotters = "0.3.7"
+
+[[example]]
+name = "single_split"
+path = "examples/single_split.rs"
+
+[[example]]
+name = "double_split"
+path = "examples/double_split.rs"
+
+[[example]]
+name = "triple_split"
+path = "examples/triple_split.rs"
+
+[[example]]
+name = "four_split"
+path = "examples/four_split.rs"
+
+[[example]]
+name = "five_split"
+path = "examples/five_split.rs"
