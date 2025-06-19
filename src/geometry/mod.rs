@@ -1,6 +1,9 @@
 //! geometry/mod.rs
 
+use std::sync::Arc;
+
 pub mod generator;
+pub mod mod_3d;
 pub use generator::create_geometry;
 
 pub type Point = (f64, f64);
@@ -25,6 +28,7 @@ pub struct ChannelSystem {
     pub box_dims: (f64, f64),
     pub nodes: Vec<Node>,
     pub channels: Vec<Channel>,
+    pub box_outline: Vec<(Point, Point)>,
 }
 
 impl ChannelSystem {
@@ -53,7 +57,7 @@ impl SplitType {
 
 /// Holds the results of a CFD simulation, linking them to the geometry.
 pub struct CfdResults {
-    pub system: ChannelSystem,
+    pub system: Arc<ChannelSystem>,
     pub node_pressures: std::collections::HashMap<usize, f64>,
     pub channel_flow_rates: std::collections::HashMap<usize, f64>,
     pub channel_resistances: std::collections::HashMap<usize, f64>,

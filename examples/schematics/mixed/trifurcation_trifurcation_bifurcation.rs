@@ -1,30 +1,27 @@
 use pyvismil::{
-    visualizations::plot_geometry,
+    config::GeometryConfig,
     geometry::{create_geometry, SplitType},
+    visualizations::plot_geometry,
 };
 use std::fs;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let example_name = "trifurcation_trifurcation_bifurcation";
-    let output_dir = format!("outputs/schematics/mixed/{}", example_name);
-    fs::create_dir_all(&output_dir)?;
-
-    let output_path = format!("{}/layout.png", output_dir);
-    let box_dimensions = (200.0, 150.0);
-    let splits = [
+fn main() {
+    println!("Generating geometry...");
+    let box_dims = (127.0, 85.0);
+    let splits = vec![
         SplitType::Trifurcation,
         SplitType::Trifurcation,
         SplitType::Bifurcation,
     ];
+    let geo_config = GeometryConfig::default();
+    let system = create_geometry(box_dims, &splits, &geo_config);
 
-    println!(
-        "Generating dynamic geometry with {} splits...",
-        splits.len()
-    );
-    let channel_system = create_geometry(box_dimensions, &splits);
+    println!("Plotting geometry...");
+    let output_dir = "outputs/schematics/mixed/trifurcation_trifurcation_bifurcation";
+    fs::create_dir_all(output_dir).unwrap();
+    let output_path = format!("{}/layout.png", output_dir);
 
-    println!("Plotting geometry to {}...", output_path);
-    plot_geometry(&channel_system, &output_path)?;
-
-    Ok(())
+    if let Err(e) = plot_geometry(&system, &output_path) {
+        eprintln!("Error plotting geometry: {}", e);
+    }
 } 

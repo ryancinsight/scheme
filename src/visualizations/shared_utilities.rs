@@ -1,6 +1,7 @@
 use crate::geometry::ChannelSystem;
 use plotters::prelude::*;
 use plotters::coord::{Shift, types::RangedCoordf64};
+use plotters::element::PathElement;
 
 pub fn visualize<'a, 'b>(
     system: &'a ChannelSystem,
@@ -18,6 +19,8 @@ pub fn visualize<'a, 'b>(
     root.fill(&WHITE)?;
 
     let (length, width) = system.box_dims;
+    let x_buffer = length * 0.05;
+    let y_buffer = width * 0.05;
 
     let mut chart = ChartBuilder::on(&root)
         .caption(title, ("sans-serif", 30).into_font())
@@ -25,7 +28,10 @@ pub fn visualize<'a, 'b>(
         .margin_right(150)
         .x_label_area_size(40)
         .y_label_area_size(40)
-        .build_cartesian_2d(0.0..length, 0.0..width)?;
+        .build_cartesian_2d(
+            -x_buffer..length + x_buffer,
+            -y_buffer..width + y_buffer,
+        )?;
 
     chart
         .configure_mesh()
@@ -40,10 +46,12 @@ pub fn visualize<'a, 'b>(
     let y_data_height = y_range.end - y_range.start;
     let y_scale_factor = y_pixel_height as f64 / y_data_height;
 
-    chart.draw_series(std::iter::once(Rectangle::new(
-        [(0.0, 0.0), (length, width)],
-        BLACK.stroke_width(2),
-    )))?;
+    chart.draw_series(
+        system
+            .box_outline
+            .iter()
+            .map(|&(p1, p2)| PathElement::new(vec![p1, p2], BLACK.stroke_width(2))),
+    )?;
 
     Ok((root, chart, y_scale_factor))
 } 

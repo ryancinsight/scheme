@@ -4,6 +4,7 @@ use crate::cfd::pressure::calculate_node_pressures;
 use crate::config::CfdConfig;
 use crate::error::SimulationError;
 use crate::geometry::{CfdResults, ChannelSystem};
+use std::sync::Arc;
 
 pub fn run_simulation(
     system: &ChannelSystem,
@@ -15,7 +16,7 @@ pub fn run_simulation(
         calculate_channel_flow_rates(system, &node_pressures, &channel_resistances);
 
     Ok(CfdResults {
-        system: system.clone(),
+        system: Arc::new(system.clone()),
         node_pressures,
         channel_flow_rates,
         channel_resistances,

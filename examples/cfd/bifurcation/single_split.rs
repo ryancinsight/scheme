@@ -1,5 +1,6 @@
 use pyvismil::{
     cfd::simulation::run_simulation,
+    config::{CfdConfig, GeometryConfig},
     geometry::{create_geometry, SplitType},
     visualizations::cfd::plot_cfd_results,
 };
@@ -9,9 +10,12 @@ fn main() {
     println!("Generating geometry...");
     let box_dims = (127.0, 85.0);
     let splits = vec![SplitType::Bifurcation];
-    let system = create_geometry(box_dims, &splits);
+    let geo_config = GeometryConfig::default();
+    let system = create_geometry(box_dims, &splits, &geo_config);
+
     println!("Running simulation...");
-    let results = run_simulation(&system);
+    let cfd_config = CfdConfig::default();
+    let results = run_simulation(&system, &cfd_config).expect("Simulation failed");
 
     println!("Plotting CFD results...");
     let output_dir = "outputs/cfd/bifurcation/single_split";

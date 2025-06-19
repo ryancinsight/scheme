@@ -151,10 +151,18 @@ impl GeometryGenerator {
     }
 
     fn finalize(self) -> ChannelSystem {
+        let (length, width) = self.box_dims;
+        let box_outline = vec![
+            ((0.0, 0.0), (length, 0.0)),
+            ((length, 0.0), (length, width)),
+            ((length, width), (0.0, width)),
+            ((0.0, width), (0.0, 0.0)),
+        ];
         ChannelSystem {
             box_dims: self.box_dims,
             nodes: self.nodes,
             channels: self.channels,
+            box_outline,
         }
     }
 }

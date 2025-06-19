@@ -1,23 +1,27 @@
-use pyvismil::geometry::{create_geometry, SplitType};
-use pyvismil::visualizations::plot_geometry;
-use pyvismil::config::GeometryConfig;
+use pyvismil::{
+    config::GeometryConfig,
+    geometry::{create_geometry, SplitType},
+    visualizations::plot_geometry,
+};
 use std::fs;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
+    println!("Generating geometry...");
+    let box_dims = (127.0, 85.0);
     let splits = vec![
         SplitType::Bifurcation,
         SplitType::Trifurcation,
         SplitType::Bifurcation,
     ];
-    println!("Generating dynamic geometry with {} splits...", splits.len());
     let geo_config = GeometryConfig::default();
-    let system = create_geometry((200.0, 200.0), &splits, &geo_config);
+    let system = create_geometry(box_dims, &splits, &geo_config);
 
+    println!("Plotting geometry...");
     let output_dir = "outputs/schematics/mixed/bifurcation_trifurcation_bifurcation";
-    fs::create_dir_all(output_dir)?;
+    fs::create_dir_all(output_dir).unwrap();
     let output_path = format!("{}/layout.png", output_dir);
 
-    println!("Plotting geometry to {}...", output_path);
-    plot_geometry(&system, &output_path)?;
-    Ok(())
+    if let Err(e) = plot_geometry(&system, &output_path) {
+        eprintln!("Error plotting geometry: {}", e);
+    }
 } 
