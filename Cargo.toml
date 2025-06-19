@@ -8,20 +8,40 @@ plotters = "0.3.7"
 
 [[example]]
 name = "single_split"
-path = "examples/single_split.rs"
+path = "examples/bifurcation/single_split.rs"
 
 [[example]]
 name = "double_split"
-path = "examples/double_split.rs"
+path = "examples/bifurcation/double_split.rs"
 
 [[example]]
 name = "triple_split"
-path = "examples/triple_split.rs"
+path = "examples/bifurcation/triple_split.rs"
 
 [[example]]
 name = "four_split"
-path = "examples/four_split.rs"
+path = "examples/bifurcation/four_split.rs"
 
 [[example]]
 name = "five_split"
-path = "examples/five_split.rs"
+path = "examples/bifurcation/five_split.rs"
+
+[[example]]
+name = "single_trifurcation"
+path = "examples/trifurcation/single_trifurcation.rs"
+
+[[example]]
+name = "double_trifurcation"
+path = "examples/trifurcation/double_trifurcation.rs"
+
+[[example]]
+name = "triple_trifurcation"
+path = "examples/trifurcation/triple_trifurcation.rs"
+
+[[example]]
+name = "four_trifurcation"
+path = "examples/trifurcation/four_trifurcation.rs"
+
+[[example]]
+name = "five_trifurcation"
+path = "examples/trifurcation/five_trifurcation.rs"

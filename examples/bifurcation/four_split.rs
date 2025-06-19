@@ -2,13 +2,13 @@ use pyvismil::{drawing::plot_geometry, geometry::create_dynamic_split_geometry};
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let example_name = "five_split";
-    let output_dir = format!("outputs/{}", example_name);
+    let example_name = "four_split";
+    let output_dir = format!("outputs/bifurcation/{}", example_name);
     fs::create_dir_all(&output_dir)?;
 
     let output_path = format!("{}/layout.png", output_dir);
     let box_dimensions = (127.0, 85.0);
-    const NUM_SPLITS: u32 = 5;
+    const NUM_SPLITS: u32 = 4;
 
     println!(
         "Generating dynamic geometry with {} splits...",

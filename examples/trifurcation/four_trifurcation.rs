@@ -1,9 +1,9 @@
-use pyvismil::{drawing::plot_geometry, geometry::create_dynamic_split_geometry};
+use pyvismil::{drawing::plot_geometry, geometry::create_trifurcation_geometry};
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let example_name = "four_split";
-    let output_dir = format!("outputs/{}", example_name);
+    let example_name = "four_trifurcation";
+    let output_dir = format!("outputs/trifurcation/{}", example_name);
     fs::create_dir_all(&output_dir)?;
 
     let output_path = format!("{}/layout.png", output_dir);
@@ -11,10 +11,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     const NUM_SPLITS: u32 = 4;
 
     println!(
-        "Generating dynamic geometry with {} splits...",
+        "Generating trifurcation geometry with {} split(s)...",
         NUM_SPLITS
     );
-    let channel_system = create_dynamic_split_geometry(box_dimensions, NUM_SPLITS);
+    let channel_system = create_trifurcation_geometry(box_dimensions, NUM_SPLITS);
 
     println!("Plotting geometry to {}...", output_path);
     plot_geometry(&channel_system, &output_path)?;
