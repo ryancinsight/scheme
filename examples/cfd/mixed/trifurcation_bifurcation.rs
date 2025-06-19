@@ -1,21 +1,19 @@
 use pyvismil::{
-    visualizations::plot_cfd_result,
+    cfd::flow::run_simulation,
     geometry::{create_geometry, SplitType},
-    cfd::flow::trace_flow,
+    visualizations::cfd::plot_cfd_results,
 };
-use std::fs;
 
 fn main() {
-    let box_dims = (200.0, 100.0);
+    println!("Generating geometry...");
+    let box_dims = (127.0, 85.0);
     let splits = vec![SplitType::Trifurcation, SplitType::Bifurcation];
     let system = create_geometry(box_dims, &splits);
+    println!("Running simulation...");
+    let results = run_simulation(&system);
 
-    let initial_flow_rate = 1.0;
-    let flow_results = trace_flow(&system, initial_flow_rate);
-
-    let output_dir = "outputs/cfd/mixed/trifurcation_bifurcation";
-    fs::create_dir_all(output_dir).unwrap();
-    let output_path = format!("{}/layout.png", output_dir);
-
-    plot_cfd_result(&system, &output_path, &flow_results).unwrap();
+    println!("Plotting CFD results...");
+    if let Err(e) = plot_cfd_results(&results, "outputs/cfd/mixed/trifurcation_bifurcation") {
+        eprintln!("Error plotting CFD results: {}", e);
+    }
 } 

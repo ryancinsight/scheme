@@ -1,35 +1,10 @@
-//! geometry.rs
-
-pub type Point = (f64, f64);
-
-#[derive(Debug, Clone)]
-pub struct Node {
-    pub id: usize,
-    pub point: Point,
-}
-
-#[derive(Debug, Clone)]
-pub struct Channel {
-    pub id: usize,
-    pub from_node: usize,
-    pub to_node: usize,
-}
-
-pub struct ChannelSystem {
-    pub box_dims: (f64, f64),
-    pub lines: Vec<(Point, Point)>,
-    pub nodes: Vec<Node>,
-    pub channels: Vec<Channel>,
-}
-
-#[derive(Clone, Copy)]
-pub enum SplitType {
-    Bifurcation,
-    Trifurcation,
-}
+use super::{Channel, ChannelSystem, Node, Point, SplitType};
 
 pub fn create_geometry(box_dims: (f64, f64), splits: &[SplitType]) -> ChannelSystem {
     const WALL_CLEARANCE: f64 = 4.0;
+    const CHANNEL_WIDTH: f64 = 1.0;
+    const CHANNEL_HEIGHT: f64 = 1.0;
+
     let (length, width) = box_dims;
     let mut nodes = Vec::new();
     let mut channels = Vec::new();
@@ -77,6 +52,8 @@ pub fn create_geometry(box_dims: (f64, f64), splits: &[SplitType]) -> ChannelSys
             id,
             from_node: from_id,
             to_node: to_id,
+            width: CHANNEL_WIDTH,
+            height: CHANNEL_HEIGHT,
         });
         *channel_c += 1;
     };

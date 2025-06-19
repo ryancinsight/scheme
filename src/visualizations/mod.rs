@@ -1,6 +1,8 @@
-mod cfd;
-mod schematic;
-mod shared_utilities;
+//! visualizations/mod.rs
 
-pub use cfd::plot_cfd_result;
+pub mod cfd;
+pub mod schematic;
+pub mod shared_utilities;
+
+pub use cfd::plot_cfd_results;
 pub use schematic::plot_geometry; 
