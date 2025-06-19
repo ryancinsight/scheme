@@ -1,4 +1,7 @@
-use pyvismil::{drawing::plot_geometry, geometry::create_dynamic_split_geometry};
+use pyvismil::{
+    drawing::plot_geometry,
+    geometry::{create_geometry, SplitType},
+};
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -14,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Generating dynamic geometry with {} splits...",
         NUM_SPLITS
     );
-    let channel_system = create_dynamic_split_geometry(box_dimensions, NUM_SPLITS);
+    let channel_system = create_geometry(box_dimensions, NUM_SPLITS, SplitType::Bifurcation);
 
     println!("Plotting geometry to {}...", output_path);
     plot_geometry(&channel_system, &output_path)?;

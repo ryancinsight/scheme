@@ -1,4 +1,7 @@
-use pyvismil::{drawing::plot_geometry, geometry::create_trifurcation_geometry};
+use pyvismil::{
+    drawing::plot_geometry,
+    geometry::{create_geometry, SplitType},
+};
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -14,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Generating trifurcation geometry with {} split(s)...",
         NUM_SPLITS
     );
-    let channel_system = create_trifurcation_geometry(box_dimensions, NUM_SPLITS);
+    let channel_system = create_geometry(box_dimensions, NUM_SPLITS, SplitType::Trifurcation);
 
     println!("Plotting geometry to {}...", output_path);
     plot_geometry(&channel_system, &output_path)?;
