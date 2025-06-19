@@ -8,64 +8,112 @@ plotters = "0.3.7"
 
 [[example]]
 name = "single_split"
-path = "examples/bifurcation/single_split.rs"
+path = "examples/schematics/bifurcation/single_split.rs"
 
 [[example]]
 name = "double_split"
-path = "examples/bifurcation/double_split.rs"
+path = "examples/schematics/bifurcation/double_split.rs"
 
 [[example]]
 name = "triple_split"
-path = "examples/bifurcation/triple_split.rs"
+path = "examples/schematics/bifurcation/triple_split.rs"
 
 [[example]]
 name = "four_split"
-path = "examples/bifurcation/four_split.rs"
+path = "examples/schematics/bifurcation/four_split.rs"
 
 [[example]]
 name = "five_split"
-path = "examples/bifurcation/five_split.rs"
+path = "examples/schematics/bifurcation/five_split.rs"
 
 [[example]]
 name = "single_trifurcation"
-path = "examples/trifurcation/single_trifurcation.rs"
+path = "examples/schematics/trifurcation/single_trifurcation.rs"
 
 [[example]]
 name = "double_trifurcation"
-path = "examples/trifurcation/double_trifurcation.rs"
+path = "examples/schematics/trifurcation/double_trifurcation.rs"
 
 [[example]]
 name = "triple_trifurcation"
-path = "examples/trifurcation/triple_trifurcation.rs"
+path = "examples/schematics/trifurcation/triple_trifurcation.rs"
 
 [[example]]
 name = "four_trifurcation"
-path = "examples/trifurcation/four_trifurcation.rs"
+path = "examples/schematics/trifurcation/four_trifurcation.rs"
 
 [[example]]
 name = "five_trifurcation"
-path = "examples/trifurcation/five_trifurcation.rs"
+path = "examples/schematics/trifurcation/five_trifurcation.rs"
 
 [[example]]
 name = "bifurcation_trifurcation"
-path = "examples/mixed/bifurcation_trifurcation.rs"
+path = "examples/schematics/mixed/bifurcation_trifurcation.rs"
 
 [[example]]
 name = "trifurcation_bifurcation"
-path = "examples/mixed/trifurcation_bifurcation.rs"
+path = "examples/schematics/mixed/trifurcation_bifurcation.rs"
 
 [[example]]
 name = "bifurcation_bifurcation_trifurcation"
-path = "examples/mixed/bifurcation_bifurcation_trifurcation.rs"
+path = "examples/schematics/mixed/bifurcation_bifurcation_trifurcation.rs"
 
 [[example]]
 name = "trifurcation_trifurcation_bifurcation"
-path = "examples/mixed/trifurcation_trifurcation_bifurcation.rs"
+path = "examples/schematics/mixed/trifurcation_trifurcation_bifurcation.rs"
 
 [[example]]
 name = "bifurcation_trifurcation_bifurcation"
-path = "examples/mixed/bifurcation_trifurcation_bifurcation.rs"
+path = "examples/schematics/mixed/bifurcation_trifurcation_bifurcation.rs"
 
 [[example]]
 name = "trifurcation_bifurcation_trifurcation"
-path = "examples/mixed/trifurcation_bifurcation_trifurcation.rs"
+path = "examples/schematics/mixed/trifurcation_bifurcation_trifurcation.rs"
+
+[[example]]
+name = "cfd_single_bifurcation"
+path = "examples/cfd/bifurcation/single_split.rs"
+
+[[example]]
+name = "cfd_single_trifurcation"
+path = "examples/cfd/trifurcation/single_trifurcation.rs"
+
+[[example]]
+name = "cfd_mixed_bifurcation_trifurcation"
+path = "examples/cfd/mixed/bifurcation_trifurcation.rs"
+
+[[example]]
+name = "cfd_double_bifurcation"
+path = "examples/cfd/bifurcation/double_split.rs"
+
+[[example]]
+name = "cfd_triple_bifurcation"
+path = "examples/cfd/bifurcation/triple_split.rs"
+
+[[example]]
+name = "cfd_double_trifurcation"
+path = "examples/cfd/trifurcation/double_trifurcation.rs"
+
+[[example]]
+name = "cfd_triple_trifurcation"
+path = "examples/cfd/trifurcation/triple_trifurcation.rs"
+
+[[example]]
+name = "cfd_mixed_trifurcation_bifurcation"
+path = "examples/cfd/mixed/trifurcation_bifurcation.rs"
+
+[[example]]
+name = "cfd_mixed_bifurcation_bifurcation_trifurcation"
+path = "examples/cfd/mixed/bifurcation_bifurcation_trifurcation.rs"
+
+[[example]]
+name = "cfd_mixed_bifurcation_trifurcation_bifurcation"
+path = "examples/cfd/mixed/bifurcation_trifurcation_bifurcation.rs"
+
+[[example]]
+name = "cfd_mixed_trifurcation_bifurcation_trifurcation"
+path = "examples/cfd/mixed/trifurcation_bifurcation_trifurcation.rs"
+
+[[example]]
+name = "cfd_mixed_trifurcation_trifurcation_bifurcation"
+path = "examples/cfd/mixed/trifurcation_trifurcation_bifurcation.rs"

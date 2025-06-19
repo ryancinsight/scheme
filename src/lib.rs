@@ -1,4 +1,5 @@
 //! lib.rs
 
-pub mod drawing;
-pub mod geometry; 
+pub mod visualizations;
+pub mod geometry;
+pub mod cfd; 
