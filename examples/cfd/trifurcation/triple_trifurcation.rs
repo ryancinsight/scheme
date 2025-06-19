@@ -1,5 +1,5 @@
 use pyvismil::{
-    cfd::flow::run_simulation,
+    cfd::simulation::run_simulation,
     geometry::{create_geometry, SplitType},
     visualizations::cfd::plot_cfd_results,
 };

@@ -36,7 +36,7 @@ fn plot_property(
         ),
     };
 
-    let (root, mut chart) = visualize(system, output_path, title)?;
+    let (root, mut chart, y_scale) = visualize(system, output_path, title)?;
 
     let max_val = data
         .values()
@@ -51,8 +51,12 @@ fn plot_property(
         let normalized_value = value / max_val;
 
         let color = HSLColor(240.0 / 360.0 * (1.0 - normalized_value), 0.9, 0.5);
+        let stroke_width = (channel.width * y_scale).round() as u32;
 
-        chart.draw_series(LineSeries::new(vec![p1, p2], color.stroke_width(3)))?;
+        chart.draw_series(LineSeries::new(
+            vec![p1, p2],
+            color.stroke_width(stroke_width.max(1)),
+        ))?;
     }
 
     // Legend

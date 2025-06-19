@@ -23,15 +23,32 @@ pub struct Channel {
 #[derive(Debug, Clone)]
 pub struct ChannelSystem {
     pub box_dims: (f64, f64),
-    pub lines: Vec<(Point, Point)>,
     pub nodes: Vec<Node>,
     pub channels: Vec<Channel>,
+}
+
+impl ChannelSystem {
+    pub fn get_lines(&self) -> Vec<(Point, Point)> {
+        self.channels
+            .iter()
+            .map(|c| (self.nodes[c.from_node].point, self.nodes[c.to_node].point))
+            .collect()
+    }
 }
 
 #[derive(Clone, Copy)]
 pub enum SplitType {
     Bifurcation,
     Trifurcation,
+}
+
+impl SplitType {
+    pub fn branch_count(&self) -> usize {
+        match self {
+            SplitType::Bifurcation => 2,
+            SplitType::Trifurcation => 3,
+        }
+    }
 }
 
 /// Holds the results of a CFD simulation, linking them to the geometry.

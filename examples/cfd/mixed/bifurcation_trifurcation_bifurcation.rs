@@ -1,27 +1,26 @@
-use pyvismil::{
-    cfd::flow::run_simulation,
-    geometry::{create_geometry, SplitType},
-    visualizations::cfd::plot_cfd_results,
-};
+use pyvismil::cfd::run_simulation;
+use pyvismil::config::{CfdConfig, GeometryConfig};
+use pyvismil::geometry::{create_geometry, SplitType};
+use pyvismil::visualizations::plot_cfd_results;
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Generating geometry...");
-    let box_dims = (127.0, 85.0);
     let splits = vec![
         SplitType::Bifurcation,
         SplitType::Trifurcation,
         SplitType::Bifurcation,
     ];
-    let system = create_geometry(box_dims, &splits);
+    let geo_config = GeometryConfig::default();
+    let system = create_geometry((200.0, 200.0), &splits, &geo_config);
 
     println!("Running simulation...");
-    let results = run_simulation(&system);
+    let cfd_config = CfdConfig::default();
+    let results = run_simulation(&system, &cfd_config)?;
 
     println!("Plotting CFD results...");
-    if let Err(e) = plot_cfd_results(
-        &results,
-        "outputs/cfd/mixed/bifurcation_trifurcation_bifurcation",
-    ) {
-        eprintln!("Error plotting CFD results: {}", e);
-    }
+    let output_dir = "outputs/cfd/mixed/bifurcation_trifurcation_bifurcation";
+    std::fs::create_dir_all(output_dir)?;
+    plot_cfd_results(&results, output_dir)?;
+
+    Ok(())
 } 
