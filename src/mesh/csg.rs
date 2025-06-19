@@ -1,5 +1,6 @@
 //! src/mesh/csg.rs
 use crate::geometry::mod_3d::{ChannelSystem3D, Cylinder, Volume};
+use crate::mesh::primitives::cuboid;
 use crate::mesh::primitives::cylinder::generate_walls;
 use spade::{ConstrainedDelaunayTriangulation, Point2, Triangulation};
 use stl_io::{Triangle, Vector};
@@ -39,7 +40,10 @@ pub fn hollow_out_system(system: &ChannelSystem3D) -> Result<Vec<Triangle>, &'st
         if let Some(holes) = piercings.get(face_id) {
             triangles.extend(generate_pierced_face(&system.box_volume, holes, *face_id)?);
         } else {
-            triangles.extend(generate_solid_face(&system.box_volume, *face_id));
+            triangles.extend(generate_solid_unpierced_face(
+                &system.box_volume,
+                *face_id,
+            ));
         }
     }
 
@@ -80,7 +84,7 @@ fn find_all_piercings(system: &ChannelSystem3D) -> HashMap<Face, Vec<&Cylinder>>
     piercings
 }
 
-fn generate_solid_face(volume: &Volume, face: Face) -> Vec<Triangle> {
+fn generate_solid_unpierced_face(volume: &Volume, face: Face) -> Vec<Triangle> {
     let v_f64 = volume.get_vertices();
     let v: Vec<Vector<f32>> = v_f64
         .iter()
@@ -88,36 +92,12 @@ fn generate_solid_face(volume: &Volume, face: Face) -> Vec<Triangle> {
         .collect();
 
     match face {
-        // Top face (+Z), normal (0,0,1)
-        Face::Top => vec![
-            Triangle { normal: Vector::new([0.0, 0.0, 1.0]), vertices: [v[4], v[5], v[6]] },
-            Triangle { normal: Vector::new([0.0, 0.0, 1.0]), vertices: [v[4], v[6], v[7]] },
-        ],
-        // Bottom face (-Z), normal (0,0,-1)
-        Face::Bottom => vec![
-            Triangle { normal: Vector::new([0.0, 0.0, -1.0]), vertices: [v[0], v[3], v[2]] },
-            Triangle { normal: Vector::new([0.0, 0.0, -1.0]), vertices: [v[0], v[2], v[1]] },
-        ],
-        // Right face (+Y), normal (0,1,0)
-        Face::Right => vec![
-            Triangle { normal: Vector::new([0.0, 1.0, 0.0]), vertices: [v[3], v[7], v[6]] },
-            Triangle { normal: Vector::new([0.0, 1.0, 0.0]), vertices: [v[3], v[6], v[2]] },
-        ],
-        // Left face (-Y), normal (0,-1,0)
-        Face::Left => vec![
-            Triangle { normal: Vector::new([0.0, -1.0, 0.0]), vertices: [v[0], v[1], v[5]] },
-            Triangle { normal: Vector::new([0.0, -1.0, 0.0]), vertices: [v[0], v[5], v[4]] },
-        ],
-        // Front face (+X), normal (1,0,0)
-        Face::Front => vec![
-            Triangle { normal: Vector::new([1.0, 0.0, 0.0]), vertices: [v[1], v[2], v[6]] },
-            Triangle { normal: Vector::new([1.0, 0.0, 0.0]), vertices: [v[1], v[6], v[5]] },
-        ],
-        // Back face (-X), normal (-1,0,0)
-        Face::Back => vec![
-            Triangle { normal: Vector::new([-1.0, 0.0, 0.0]), vertices: [v[0], v[4], v[7]] },
-            Triangle { normal: Vector::new([-1.0, 0.0, 0.0]), vertices: [v[0], v[7], v[3]] },
-        ],
+        Face::Top => cuboid::generate_face(v[4], v[5], v[6], v[7], Vector::new([0.0, 0.0, 1.0])),
+        Face::Bottom => cuboid::generate_face(v[0], v[3], v[2], v[1], Vector::new([0.0, 0.0, -1.0])),
+        Face::Right => cuboid::generate_face(v[3], v[7], v[6], v[2], Vector::new([0.0, 1.0, 0.0])),
+        Face::Left => cuboid::generate_face(v[0], v[1], v[5], v[4], Vector::new([0.0, -1.0, 0.0])),
+        Face::Front => cuboid::generate_face(v[1], v[2], v[6], v[5], Vector::new([1.0, 0.0, 0.0])),
+        Face::Back => cuboid::generate_face(v[0], v[4], v[7], v[3], Vector::new([-1.0, 0.0, 0.0])),
     }
 }
 

@@ -5,7 +5,7 @@ use spade::{ConstrainedDelaunayTriangulation, Point2, Triangulation};
 use stl_io::{Triangle, Vector};
 
 /// Computes the cross product of two vectors.
-fn cross_product(a: Vector<f32>, b: Vector<f32>) -> Vector<f32> {
+pub(crate) fn cross_product(a: Vector<f32>, b: Vector<f32>) -> Vector<f32> {
     Vector::new([
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -14,12 +14,12 @@ fn cross_product(a: Vector<f32>, b: Vector<f32>) -> Vector<f32> {
 }
 
 /// Computes the dot product of two vectors.
-fn dot_product(a: Vector<f32>, b: Vector<f32>) -> f32 {
+pub(crate) fn dot_product(a: Vector<f32>, b: Vector<f32>) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
 /// Generates a triangulated mesh for a single rectangular face.
-fn generate_face(
+pub(crate) fn generate_face(
     p1: Vector<f32>,
     p2: Vector<f32>,
     p3: Vector<f32>,
