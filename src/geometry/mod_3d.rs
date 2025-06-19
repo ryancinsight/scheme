@@ -42,11 +42,19 @@ pub struct Cylinder {
     pub radius: f64,
 }
 
+/// Represents a sphere defined by its center point and radius.
+#[derive(Debug, Clone)]
+pub struct Sphere {
+    pub center: Point3D,
+    pub radius: f64,
+}
+
 /// Represents the entire 3D channel system.
 #[derive(Debug, Clone)]
 pub struct ChannelSystem3D {
     pub box_volume: Volume,
     pub cylinders: Vec<Cylinder>,
+    pub spheres: Vec<Sphere>,
 }
 
 impl ChannelSystem3D {
@@ -72,6 +80,19 @@ impl ChannelSystem3D {
                 cyl.start.0.max(cyl.end.0) + cyl.radius,
                 cyl.start.1.max(cyl.end.1) + cyl.radius,
                 cyl.start.2.max(cyl.end.2) + cyl.radius,
+            ));
+        }
+
+        for sphere in &self.spheres {
+            points_to_bound.push((
+                sphere.center.0 - sphere.radius,
+                sphere.center.1 - sphere.radius,
+                sphere.center.2 - sphere.radius,
+            ));
+            points_to_bound.push((
+                sphere.center.0 + sphere.radius,
+                sphere.center.1 + sphere.radius,
+                sphere.center.2 + sphere.radius,
             ));
         }
 

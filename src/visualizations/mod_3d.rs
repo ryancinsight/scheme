@@ -83,6 +83,37 @@ pub fn plot_3d_system(
             chart.draw_series(LineSeries::new(vec![(start_vertices[i].0, start_vertices[i].2, start_vertices[i].1), (end_vertices[i].0, end_vertices[i].2, end_vertices[i].1)], &BLUE))?;
         }
     }
+
+    // Draw spheres
+    for sphere in &system_3d.spheres {
+        // Draw longitude lines
+        for i in 0..SEGMENTS / 2 {
+            let mut points = Vec::with_capacity(SEGMENTS + 1);
+            let phi = (i as f64 / (SEGMENTS / 2) as f64) * PI;
+            for j in 0..=SEGMENTS {
+                let theta = (j as f64 / SEGMENTS as f64) * 2.0 * PI;
+                let x = sphere.radius * theta.cos() * phi.sin() + sphere.center.0;
+                let y = sphere.radius * theta.sin() * phi.sin() + sphere.center.1;
+                let z = sphere.radius * phi.cos() + sphere.center.2;
+                points.push((x, z, y));
+            }
+            chart.draw_series(LineSeries::new(points, &RED))?;
+        }
+
+        // Draw latitude lines
+        for i in 0..SEGMENTS {
+            let mut points = Vec::with_capacity(SEGMENTS + 1);
+            let theta = (i as f64 / SEGMENTS as f64) * 2.0 * PI;
+            for j in 0..=SEGMENTS {
+                let phi = (j as f64 / SEGMENTS as f64) * PI;
+                let x = sphere.radius * theta.cos() * phi.sin() + sphere.center.0;
+                let y = sphere.radius * theta.sin() * phi.sin() + sphere.center.1;
+                let z = sphere.radius * phi.cos() + sphere.center.2;
+                points.push((x, z, y));
+            }
+            chart.draw_series(LineSeries::new(points, &RED))?;
+        }
+    }
     
     // Draw axis labels manually by projecting 3D points to 2D screen coordinates.
     let coord = chart.as_coord_spec();

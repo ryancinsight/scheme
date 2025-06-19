@@ -26,6 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let system_3d = ChannelSystem3D {
         box_volume: box_volume.clone(),
         cylinders: vec![cylinder.clone()],
+        spheres: vec![],
     };
 
     // Generate the hollow mesh

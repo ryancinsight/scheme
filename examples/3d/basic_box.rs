@@ -14,6 +14,7 @@ fn main() {
             max_corner: (127.0, 85.0, 44.0),
         },
         cylinders: vec![],
+        spheres: vec![],
     };
 
     let output_dir = "outputs/3d";

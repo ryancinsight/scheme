@@ -22,10 +22,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 2. Convert the 2D geometry to 3D
     println!("Converting 2D schematic to 3D system...");
-    let conv_config = ConversionConfig {
-        box_z_height: 44.0,
-    };
-    let system_3d = convert_2d_to_3d(&system_2d, &conv_config);
+    let conversion_config = ConversionConfig::default();
+    let system_3d = convert_2d_to_3d(&system_2d, &conversion_config);
 
     // 3. Generate and save the 3D plot
     println!("Plotting 3D system...");

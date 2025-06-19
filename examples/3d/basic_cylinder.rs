@@ -17,6 +17,7 @@ fn main() {
             end: (127.0, 0.0, 0.0),
             radius: 5.0,
         }],
+        spheres: vec![],
     };
 
     let output_dir = "outputs/3d";
