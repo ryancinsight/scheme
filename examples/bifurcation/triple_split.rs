@@ -11,13 +11,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let output_path = format!("{}/layout.png", output_dir);
     let box_dimensions = (127.0, 85.0);
-    const NUM_SPLITS: u32 = 3;
+    let splits = [SplitType::Bifurcation; 3];
 
     println!(
         "Generating dynamic geometry with {} splits...",
-        NUM_SPLITS
+        splits.len()
     );
-    let channel_system = create_geometry(box_dimensions, NUM_SPLITS, SplitType::Bifurcation);
+    let channel_system = create_geometry(box_dimensions, &splits);
 
     println!("Plotting geometry to {}...", output_path);
     plot_geometry(&channel_system, &output_path)?;

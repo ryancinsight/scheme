@@ -5,18 +5,15 @@ use pyvismil::{
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let example_name = "single_split";
-    let output_dir = format!("outputs/bifurcation/{}", example_name);
+    let example_name = "bifurcation_trifurcation";
+    let output_dir = format!("outputs/mixed/{}", example_name);
     fs::create_dir_all(&output_dir)?;
 
     let output_path = format!("{}/layout.png", output_dir);
     let box_dimensions = (127.0, 85.0);
-    let splits = [SplitType::Bifurcation];
+    let splits = [SplitType::Bifurcation, SplitType::Trifurcation];
 
-    println!(
-        "Generating dynamic geometry with {} split(s)...",
-        splits.len()
-    );
+    println!("Generating mixed geometry (bifurcation -> trifurcation)...");
     let channel_system = create_geometry(box_dimensions, &splits);
 
     println!("Plotting geometry to {}...", output_path);

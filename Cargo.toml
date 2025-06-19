@@ -45,3 +45,27 @@ path = "examples/trifurcation/four_trifurcation.rs"
 [[example]]
 name = "five_trifurcation"
 path = "examples/trifurcation/five_trifurcation.rs"
+
+[[example]]
+name = "bifurcation_trifurcation"
+path = "examples/mixed/bifurcation_trifurcation.rs"
+
+[[example]]
+name = "trifurcation_bifurcation"
+path = "examples/mixed/trifurcation_bifurcation.rs"
+
+[[example]]
+name = "bifurcation_bifurcation_trifurcation"
+path = "examples/mixed/bifurcation_bifurcation_trifurcation.rs"
+
+[[example]]
+name = "trifurcation_trifurcation_bifurcation"
+path = "examples/mixed/trifurcation_trifurcation_bifurcation.rs"
+
+[[example]]
+name = "bifurcation_trifurcation_bifurcation"
+path = "examples/mixed/bifurcation_trifurcation_bifurcation.rs"
+
+[[example]]
+name = "trifurcation_bifurcation_trifurcation"
+path = "examples/mixed/trifurcation_bifurcation_trifurcation.rs"

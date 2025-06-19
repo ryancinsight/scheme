@@ -7,15 +7,17 @@ pub struct ChannelSystem {
     pub lines: Vec<(Point, Point)>,
 }
 
+#[derive(Clone, Copy)]
 pub enum SplitType {
     Bifurcation,
     Trifurcation,
 }
 
-pub fn create_geometry(box_dims: (f64, f64), num_splits: u32, split_type: SplitType) -> ChannelSystem {
+pub fn create_geometry(box_dims: (f64, f64), splits: &[SplitType]) -> ChannelSystem {
     const WALL_CLEARANCE: f64 = 4.0;
     let (length, width) = box_dims;
     let mut lines = Vec::new();
+    let num_splits = splits.len() as u32;
 
     if num_splits == 0 {
         lines.push(((0.0, width / 2.0), (length, width / 2.0)));
@@ -34,7 +36,7 @@ pub fn create_geometry(box_dims: (f64, f64), num_splits: u32, split_type: SplitT
 
     let mut first_half_lines = Vec::new();
 
-    for _ in 0..num_splits {
+    for (_, split_type) in splits.iter().enumerate() {
         let mut next_y_coords = Vec::new();
         let mut next_y_ranges = Vec::new();
 
@@ -43,8 +45,8 @@ pub fn create_geometry(box_dims: (f64, f64), num_splits: u32, split_type: SplitT
         }
         current_x += dx;
 
-        for (i, y_center) in y_coords.iter().enumerate() {
-            let y_range = y_ranges[i];
+        for (j, y_center) in y_coords.iter().enumerate() {
+            let y_range = y_ranges[j];
 
             match split_type {
                 SplitType::Bifurcation => {
