@@ -32,4 +32,17 @@ impl Default for CfdConfig {
             outlet_pressure: 0.0,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ConversionConfig {
+    pub box_z_height: f64,
+}
+
+impl Default for ConversionConfig {
+    fn default() -> Self {
+        Self {
+            box_z_height: 10.0,
+        }
+    }
 } 

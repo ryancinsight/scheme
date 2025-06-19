@@ -1,135 +1,232 @@
 //! src/mesh/csg.rs
-use crate::geometry::mod_3d::{Cylinder, Volume};
+use crate::geometry::mod_3d::{ChannelSystem3D, Cylinder, Volume};
 use crate::mesh::primitives::cylinder::generate_walls;
 use spade::{ConstrainedDelaunayTriangulation, Point2, Triangulation};
 use stl_io::{Triangle, Vector};
+use std::collections::HashMap;
 use std::f32::consts::PI;
 
 const SEGMENTS: usize = 32;
 
-/// Subtracts a cylinder from a volume, creating a hollowed-out mesh.
-/// Assumes the cylinder is aligned with the X-axis and passes through the volume.
-pub fn subtract_cylinder_from_volume(volume: &Volume, cylinder: &Cylinder) -> Vec<Triangle> {
-    let mut triangles = Vec::new();
-
-    // 1. Add the inner walls from the cylinder, with normals flipped to face inward.
-    triangles.extend(generate_walls(cylinder, true));
-
-    // 2. Add the four box faces that are not intersected by the cylinder.
-    triangles.extend(generate_non_intersected_faces(volume));
-
-    // 3. Generate the front and back faces with circular holes.
-    // Assumes cylinder is X-aligned and fully penetrates the box.
-    let front_face_x = volume.max_corner.0;
-    let back_face_x = volume.min_corner.0;
-
-    triangles.extend(generate_face_with_hole(volume, cylinder, back_face_x));
-    triangles.extend(generate_face_with_hole(volume, cylinder, front_face_x));
-
-    triangles
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum Face {
+    Back,  // -X
+    Front, // +X
+    Left,  // -Y
+    Right, // +Y
+    Bottom,// -Z
+    Top,   // +Z
 }
 
-/// Generates the 4 outer faces of the volume that are not pierced by the cylinder.
-fn generate_non_intersected_faces(volume: &Volume) -> Vec<Triangle> {
+pub fn hollow_out_system(system: &ChannelSystem3D) -> Result<Vec<Triangle>, &'static str> {
+    let mut triangles = Vec::new();
+
+    for cylinder in &system.cylinders {
+        triangles.extend(generate_walls(cylinder, true));
+    }
+
+    let piercings = find_all_piercings(system);
+    let all_faces = [
+        Face::Back,
+        Face::Front,
+        Face::Left,
+        Face::Right,
+        Face::Bottom,
+        Face::Top,
+    ];
+
+    for face_id in &all_faces {
+        if let Some(holes) = piercings.get(face_id) {
+            triangles.extend(generate_pierced_face(&system.box_volume, holes, *face_id)?);
+        } else {
+            triangles.extend(generate_solid_face(&system.box_volume, *face_id));
+        }
+    }
+
+    Ok(triangles)
+}
+
+fn find_all_piercings(system: &ChannelSystem3D) -> HashMap<Face, Vec<&Cylinder>> {
+    let mut piercings: HashMap<Face, Vec<&Cylinder>> = HashMap::new();
+    let min = system.box_volume.min_corner;
+    let max = system.box_volume.max_corner;
+
+    for cyl in &system.cylinders {
+        let start = cyl.start;
+        let end = cyl.end;
+        
+        // Check start point
+        if (start.0 - min.0).abs() < 1e-6 { piercings.entry(Face::Back).or_default().push(cyl); }
+        if (start.0 - max.0).abs() < 1e-6 { piercings.entry(Face::Front).or_default().push(cyl); }
+        if (start.1 - min.1).abs() < 1e-6 { piercings.entry(Face::Left).or_default().push(cyl); }
+        if (start.1 - max.1).abs() < 1e-6 { piercings.entry(Face::Right).or_default().push(cyl); }
+        if (start.2 - min.2).abs() < 1e-6 { piercings.entry(Face::Bottom).or_default().push(cyl); }
+        if (start.2 - max.2).abs() < 1e-6 { piercings.entry(Face::Top).or_default().push(cyl); }
+        
+        // Check end point
+        if (end.0 - min.0).abs() < 1e-6 { piercings.entry(Face::Back).or_default().push(cyl); }
+        if (end.0 - max.0).abs() < 1e-6 { piercings.entry(Face::Front).or_default().push(cyl); }
+        if (end.1 - min.1).abs() < 1e-6 { piercings.entry(Face::Left).or_default().push(cyl); }
+        if (end.1 - max.1).abs() < 1e-6 { piercings.entry(Face::Right).or_default().push(cyl); }
+        if (end.2 - min.2).abs() < 1e-6 { piercings.entry(Face::Bottom).or_default().push(cyl); }
+        if (end.2 - max.2).abs() < 1e-6 { piercings.entry(Face::Top).or_default().push(cyl); }
+    }
+    
+    for holes in piercings.values_mut() {
+        holes.sort_by_key(|c| c as *const _ as usize);
+        holes.dedup_by_key(|c| c as *const _ as usize);
+    }
+
+    piercings
+}
+
+fn generate_solid_face(volume: &Volume, face: Face) -> Vec<Triangle> {
     let v_f64 = volume.get_vertices();
     let v: Vec<Vector<f32>> = v_f64
         .iter()
         .map(|&(x, y, z)| Vector::new([x as f32, y as f32, z as f32]))
         .collect();
 
-    vec![
-        // Top face (+Z)
-        Triangle { normal: Vector::new([0.0, 0.0, 1.0]), vertices: [v[4].clone(), v[5].clone(), v[6].clone()] },
-        Triangle { normal: Vector::new([0.0, 0.0, 1.0]), vertices: [v[4].clone(), v[6].clone(), v[7].clone()] },
-        // Bottom face (-Z)
-        Triangle { normal: Vector::new([0.0, 0.0, -1.0]), vertices: [v[0].clone(), v[2].clone(), v[1].clone()] },
-        Triangle { normal: Vector::new([0.0, 0.0, -1.0]), vertices: [v[0].clone(), v[3].clone(), v[2].clone()] },
-        // Front face (+Y)
-        Triangle { normal: Vector::new([0.0, 1.0, 0.0]), vertices: [v[3].clone(), v[2].clone(), v[6].clone()] },
-        Triangle { normal: Vector::new([0.0, 1.0, 0.0]), vertices: [v[3].clone(), v[6].clone(), v[7].clone()] },
-        // Back face (-Y)
-        Triangle { normal: Vector::new([0.0, -1.0, 0.0]), vertices: [v[0].clone(), v[5].clone(), v[1].clone()] },
-        Triangle { normal: Vector::new([0.0, -1.0, 0.0]), vertices: [v[0].clone(), v[4].clone(), v[5].clone()] },
-    ]
+    match face {
+        // Top face (+Z), normal (0,0,1)
+        Face::Top => vec![
+            Triangle { normal: Vector::new([0.0, 0.0, 1.0]), vertices: [v[4], v[5], v[6]] },
+            Triangle { normal: Vector::new([0.0, 0.0, 1.0]), vertices: [v[4], v[6], v[7]] },
+        ],
+        // Bottom face (-Z), normal (0,0,-1)
+        Face::Bottom => vec![
+            Triangle { normal: Vector::new([0.0, 0.0, -1.0]), vertices: [v[0], v[3], v[2]] },
+            Triangle { normal: Vector::new([0.0, 0.0, -1.0]), vertices: [v[0], v[2], v[1]] },
+        ],
+        // Right face (+Y), normal (0,1,0)
+        Face::Right => vec![
+            Triangle { normal: Vector::new([0.0, 1.0, 0.0]), vertices: [v[3], v[7], v[6]] },
+            Triangle { normal: Vector::new([0.0, 1.0, 0.0]), vertices: [v[3], v[6], v[2]] },
+        ],
+        // Left face (-Y), normal (0,-1,0)
+        Face::Left => vec![
+            Triangle { normal: Vector::new([0.0, -1.0, 0.0]), vertices: [v[0], v[1], v[5]] },
+            Triangle { normal: Vector::new([0.0, -1.0, 0.0]), vertices: [v[0], v[5], v[4]] },
+        ],
+        // Front face (+X), normal (1,0,0)
+        Face::Front => vec![
+            Triangle { normal: Vector::new([1.0, 0.0, 0.0]), vertices: [v[1], v[2], v[6]] },
+            Triangle { normal: Vector::new([1.0, 0.0, 0.0]), vertices: [v[1], v[6], v[5]] },
+        ],
+        // Back face (-X), normal (-1,0,0)
+        Face::Back => vec![
+            Triangle { normal: Vector::new([-1.0, 0.0, 0.0]), vertices: [v[0], v[4], v[7]] },
+            Triangle { normal: Vector::new([-1.0, 0.0, 0.0]), vertices: [v[0], v[7], v[3]] },
+        ],
+    }
 }
 
-/// Uses a 2D triangulation library to generate a face with a hole.
-fn generate_face_with_hole(
+fn generate_pierced_face(
     volume: &Volume,
-    cylinder: &Cylinder,
-    x_coord: f64,
-) -> Vec<Triangle> {
+    cylinders: &[&Cylinder],
+    face: Face,
+) -> Result<Vec<Triangle>, &'static str> {
     let mut cdt = ConstrainedDelaunayTriangulation::<Point2<f32>>::new();
 
-    // Define the outer boundary (the box face)
-    let y_min = volume.min_corner.1 as f32;
-    let y_max = volume.max_corner.1 as f32;
-    let z_min = volume.min_corner.2 as f32;
-    let z_max = volume.max_corner.2 as f32;
+    let (p1, p2, p3, p4, normal, const_coord, get_2d_coords, get_3d_vertex, get_const_coord) = match face {
+        Face::Back => (
+            (volume.min_corner.1, volume.min_corner.2), (volume.max_corner.1, volume.min_corner.2),
+            (volume.max_corner.1, volume.max_corner.2), (volume.min_corner.1, volume.max_corner.2),
+            Vector::new([-1.0, 0.0, 0.0]), volume.min_corner.0,
+            Box::new(|p: (f64,f64,f64)| (p.1, p.2)) as Box<dyn Fn((f64,f64,f64)) -> (f64, f64)>,
+            Box::new(|p: Point2<f32>, c: f64| Vector::new([c as f32, p.x, p.y])) as Box<dyn Fn(Point2<f32>, f64) -> Vector<f32>>,
+            Box::new(|p: (f64,f64,f64)| p.0) as Box<dyn Fn((f64,f64,f64)) -> f64>,
+        ),
+        Face::Front => (
+            (volume.min_corner.1, volume.min_corner.2), (volume.max_corner.1, volume.min_corner.2),
+            (volume.max_corner.1, volume.max_corner.2), (volume.min_corner.1, volume.max_corner.2),
+            Vector::new([1.0, 0.0, 0.0]), volume.max_corner.0,
+            Box::new(|p: (f64,f64,f64)| (p.1, p.2)) as Box<dyn Fn((f64,f64,f64)) -> (f64, f64)>,
+            Box::new(|p: Point2<f32>, c: f64| Vector::new([c as f32, p.x, p.y])) as Box<dyn Fn(Point2<f32>, f64) -> Vector<f32>>,
+            Box::new(|p: (f64,f64,f64)| p.0) as Box<dyn Fn((f64,f64,f64)) -> f64>,
+        ),
+        Face::Left => (
+            (volume.min_corner.0, volume.min_corner.2), (volume.max_corner.0, volume.min_corner.2),
+            (volume.max_corner.0, volume.max_corner.2), (volume.min_corner.0, volume.max_corner.2),
+            Vector::new([0.0, -1.0, 0.0]), volume.min_corner.1,
+            Box::new(|p: (f64,f64,f64)| (p.0, p.2)) as Box<dyn Fn((f64,f64,f64)) -> (f64, f64)>,
+            Box::new(|p: Point2<f32>, c: f64| Vector::new([p.x, c as f32, p.y])) as Box<dyn Fn(Point2<f32>, f64) -> Vector<f32>>,
+            Box::new(|p: (f64,f64,f64)| p.1) as Box<dyn Fn((f64,f64,f64)) -> f64>,
+        ),
+        Face::Right => (
+            (volume.min_corner.0, volume.min_corner.2), (volume.max_corner.0, volume.min_corner.2),
+            (volume.max_corner.0, volume.max_corner.2), (volume.min_corner.0, volume.max_corner.2),
+            Vector::new([0.0, 1.0, 0.0]), volume.max_corner.1,
+            Box::new(|p: (f64,f64,f64)| (p.0, p.2)) as Box<dyn Fn((f64,f64,f64)) -> (f64, f64)>,
+            Box::new(|p: Point2<f32>, c: f64| Vector::new([p.x, c as f32, p.y])) as Box<dyn Fn(Point2<f32>, f64) -> Vector<f32>>,
+            Box::new(|p: (f64,f64,f64)| p.1) as Box<dyn Fn((f64,f64,f64)) -> f64>,
+        ),
+        Face::Bottom => (
+            (volume.min_corner.0, volume.min_corner.1), (volume.max_corner.0, volume.min_corner.1),
+            (volume.max_corner.0, volume.max_corner.1), (volume.min_corner.0, volume.max_corner.1),
+            Vector::new([0.0, 0.0, -1.0]), volume.min_corner.2,
+            Box::new(|p: (f64,f64,f64)| (p.0, p.1)) as Box<dyn Fn((f64,f64,f64)) -> (f64, f64)>,
+            Box::new(|p: Point2<f32>, c: f64| Vector::new([p.x, p.y, c as f32])) as Box<dyn Fn(Point2<f32>, f64) -> Vector<f32>>,
+            Box::new(|p: (f64,f64,f64)| p.2) as Box<dyn Fn((f64,f64,f64)) -> f64>,
+        ),
+        Face::Top => (
+            (volume.min_corner.0, volume.min_corner.1), (volume.max_corner.0, volume.min_corner.1),
+            (volume.max_corner.0, volume.max_corner.1), (volume.min_corner.0, volume.max_corner.1),
+            Vector::new([0.0, 0.0, 1.0]), volume.max_corner.2,
+            Box::new(|p: (f64,f64,f64)| (p.0, p.1)) as Box<dyn Fn((f64,f64,f64)) -> (f64, f64)>,
+            Box::new(|p: Point2<f32>, c: f64| Vector::new([p.x, p.y, c as f32])) as Box<dyn Fn(Point2<f32>, f64) -> Vector<f32>>,
+            Box::new(|p: (f64,f64,f64)| p.2) as Box<dyn Fn((f64,f64,f64)) -> f64>,
+        ),
+    };
 
-    let v1 = cdt.insert(Point2::new(y_min, z_min)).unwrap();
-    let v2 = cdt.insert(Point2::new(y_max, z_min)).unwrap();
-    let v3 = cdt.insert(Point2::new(y_max, z_max)).unwrap();
-    let v4 = cdt.insert(Point2::new(y_min, z_max)).unwrap();
+    let v1 = cdt.insert(Point2::new(p1.0 as f32, p1.1 as f32)).map_err(|_| "CDT insert failed")?;
+    let v2 = cdt.insert(Point2::new(p2.0 as f32, p2.1 as f32)).map_err(|_| "CDT insert failed")?;
+    let v3 = cdt.insert(Point2::new(p3.0 as f32, p3.1 as f32)).map_err(|_| "CDT insert failed")?;
+    let v4 = cdt.insert(Point2::new(p4.0 as f32, p4.1 as f32)).map_err(|_| "CDT insert failed")?;
     cdt.add_constraint(v1, v2);
     cdt.add_constraint(v2, v3);
     cdt.add_constraint(v3, v4);
     cdt.add_constraint(v4, v1);
 
-    // Define the inner boundary (the circular hole)
-    let r = cylinder.radius as f32;
-    let center_y = cylinder.start.1 as f32;
-    let center_z = cylinder.start.2 as f32;
-    let mut hole_vertices = Vec::new();
-    for i in 0..SEGMENTS {
-        let theta = (i as f32 / SEGMENTS as f32) * 2.0 * PI;
-        let y = center_y + r * theta.cos();
-        let z = center_z + r * theta.sin();
-        hole_vertices.push(cdt.insert(Point2::new(y, z)).unwrap());
-    }
-    for i in 0..SEGMENTS {
-        cdt.add_constraint(hole_vertices[i], hole_vertices[(i + 1) % SEGMENTS]);
+    for cylinder in cylinders {
+        let r = cylinder.radius as f32;
+        let center = if (get_const_coord(cylinder.start) - const_coord).abs() < 1e-6 { cylinder.start } else { cylinder.end };
+        let (center_u, center_v) = get_2d_coords(center);
+
+        let mut hole_vertices = Vec::new();
+        for i in 0..SEGMENTS {
+            let theta = (i as f32 / SEGMENTS as f32) * 2.0 * PI;
+            let u = center_u as f32 + r * theta.cos();
+            let v = center_v as f32 + r * theta.sin();
+            hole_vertices.push(cdt.insert(Point2::new(u, v)).map_err(|_| "CDT insert failed")?);
+        }
+        for i in 0..SEGMENTS {
+            cdt.add_constraint(hole_vertices[i], hole_vertices[(i + 1) % SEGMENTS]);
+        }
     }
 
-    // Triangulate and build the mesh
     let mut triangles = Vec::new();
-    let normal_x = if x_coord == volume.min_corner.0 { -1.0 } else { 1.0 };
-    let normal = Vector::new([normal_x, 0.0, 0.0]);
+    for face_2d in cdt.inner_faces() {
+        let v_2d = face_2d.vertices();
+        let p_2d = [v_2d[0].position(), v_2d[1].position(), v_2d[2].position()];
+        let centroid = Point2::new((p_2d[0].x + p_2d[1].x + p_2d[2].x) / 3.0, (p_2d[0].y + p_2d[1].y + p_2d[2].y) / 3.0);
 
-    for face in cdt.inner_faces() {
-        let vertices_handles = face.vertices();
-        let p1_2d = vertices_handles[0].position();
-        let p2_2d = vertices_handles[1].position();
-        let p3_2d = vertices_handles[2].position();
+        let in_hole = cylinders.iter().any(|cyl| {
+            let r_sq = (cyl.radius as f32).powi(2);
+            let center = if (get_const_coord(cyl.start) - const_coord).abs() < 1e-6 { cyl.start } else { cyl.end };
+            let (center_u, center_v) = get_2d_coords(center);
+            (centroid.x - center_u as f32).powi(2) + (centroid.y - center_v as f32).powi(2) < r_sq
+        });
 
-        // Check if the triangle is outside the hole
-        let centroid = Point2::new(
-            (p1_2d.x + p2_2d.x + p3_2d.x) / 3.0,
-            (p1_2d.y + p2_2d.y + p3_2d.y) / 3.0,
-        );
-        let dist_sq = (centroid.x - center_y).powi(2) + (centroid.y - center_z).powi(2);
-        if dist_sq < r * r {
-            continue; // Skip triangles inside the hole
-        }
-
-        // Lift 2D points back to 3D and create the triangle
-        let v1_3d = Vector::new([x_coord as f32, p1_2d.x, p1_2d.y]);
-        let v2_3d = Vector::new([x_coord as f32, p2_2d.x, p2_2d.y]);
-        let v3_3d = Vector::new([x_coord as f32, p3_2d.x, p3_2d.y]);
-
-        if normal_x > 0.0 {
-            triangles.push(Triangle {
-                normal: normal.clone(),
-                vertices: [v1_3d, v2_3d, v3_3d],
-            });
-        } else {
-            // Reverse winding order for the back face to keep normal correct
-            triangles.push(Triangle {
-                normal: normal.clone(),
-                vertices: [v1_3d, v3_3d, v2_3d],
-            });
+        if !in_hole {
+            let v_3d = p_2d.map(|p| get_3d_vertex(p, const_coord));
+            if normal[0] > 0.0 || normal[1] > 0.0 || normal[2] > 0.0 {
+                triangles.push(Triangle { normal, vertices: [v_3d[0], v_3d[1], v_3d[2]] });
+            } else {
+                triangles.push(Triangle { normal, vertices: [v_3d[0], v_3d[2], v_3d[1]] });
+            }
         }
     }
 
-    triangles
-} 
+    Ok(triangles)
+}

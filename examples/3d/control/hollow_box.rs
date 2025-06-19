@@ -1,7 +1,7 @@
 //! examples/3d/control/hollow_box.rs
 
 use pyvismil::geometry::mod_3d::{ChannelSystem3D, Cylinder, Volume};
-use pyvismil::mesh::{subtract_cylinder_from_volume, write_stl};
+use pyvismil::mesh::{hollow_out_system, write_stl};
 use pyvismil::visualizations::plot_3d_system;
 use std::fs;
 
@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Generate the hollow mesh
-    let triangles = subtract_cylinder_from_volume(&box_volume, &cylinder);
+    let triangles = hollow_out_system(&system_3d)?;
 
     // Save the final mesh to an STL file
     let stl_path = format!("{}/hollow_box.stl", output_dir);

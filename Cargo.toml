@@ -142,5 +142,9 @@ path = "examples/3d/control/cylinder_in_box.rs"
 name = "hollow_box"
 path = "examples/3d/control/hollow_box.rs"
 
+[[example]]
+name = "schematic_to_3d"
+path = "examples/3d/schematic_to_3d.rs"
+
 [dev-dependencies]
 criterion = "0.5.1"

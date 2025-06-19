@@ -1,4 +1,4 @@
-use super::{Channel, ChannelSystem, Node, Point, SplitType};
+use super::{Channel, ChannelSystem, Node, Point2D, SplitType};
 use crate::config::GeometryConfig;
 use std::collections::HashMap;
 
@@ -25,11 +25,11 @@ impl GeometryGenerator {
         }
     }
 
-    fn point_to_key(p: Point) -> (i64, i64) {
+    fn point_to_key(p: Point2D) -> (i64, i64) {
         ((p.0 * 1e9) as i64, (p.1 * 1e9) as i64)
     }
 
-    fn get_or_create_node(&mut self, p: Point) -> usize {
+    fn get_or_create_node(&mut self, p: Point2D) -> usize {
         let key = Self::point_to_key(p);
         if let Some(id) = self.point_to_node_id.get(&key) {
             return *id;
@@ -41,7 +41,7 @@ impl GeometryGenerator {
         id
     }
 
-    fn add_channel(&mut self, p1: Point, p2: Point) {
+    fn add_channel(&mut self, p1: Point2D, p2: Point2D) {
         let from_id = self.get_or_create_node(p1);
         let to_id = self.get_or_create_node(p2);
         let id = self.channel_counter;
@@ -76,7 +76,7 @@ impl GeometryGenerator {
         self.finalize()
     }
 
-    fn generate_first_half(&self, splits: &[SplitType]) -> Vec<(Point, Point)> {
+    fn generate_first_half(&self, splits: &[SplitType]) -> Vec<(Point2D, Point2D)> {
         let (length, width) = self.box_dims;
         let effective_width = width - (2.0 * self.config.wall_clearance);
         let half_l = length / 2.0;
@@ -119,7 +119,7 @@ impl GeometryGenerator {
         y_ranges: &[f64],
         current_x: f64,
         dx: f64,
-    ) -> (Vec<f64>, Vec<f64>, Vec<(Point, Point)>) {
+    ) -> (Vec<f64>, Vec<f64>, Vec<(Point2D, Point2D)>) {
         let mut next_y_coords = Vec::new();
         let mut next_y_ranges = Vec::new();
         let mut new_lines = Vec::new();
@@ -141,7 +141,7 @@ impl GeometryGenerator {
         (next_y_coords, next_y_ranges, new_lines)
     }
 
-    fn mirror_geometry(&mut self, first_half_lines: &[(Point, Point)]) {
+    fn mirror_geometry(&mut self, first_half_lines: &[(Point2D, Point2D)]) {
         let (length, _) = self.box_dims;
         for (p1, p2) in first_half_lines {
             let mirrored_p1 = (length - p2.0, p2.1);
