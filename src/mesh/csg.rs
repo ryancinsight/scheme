@@ -1,6 +1,6 @@
 //! src/mesh/csg.rs
 use crate::geometry::mod_3d::{Cylinder, Volume};
-use crate::mesh::generator::generate_cylinder_walls;
+use crate::mesh::primitives::cylinder::generate_walls;
 use spade::{ConstrainedDelaunayTriangulation, Point2, Triangulation};
 use stl_io::{Triangle, Vector};
 use std::f32::consts::PI;
@@ -13,7 +13,7 @@ pub fn subtract_cylinder_from_volume(volume: &Volume, cylinder: &Cylinder) -> Ve
     let mut triangles = Vec::new();
 
     // 1. Add the inner walls from the cylinder, with normals flipped to face inward.
-    triangles.extend(generate_cylinder_walls(cylinder, true));
+    triangles.extend(generate_walls(cylinder, true));
 
     // 2. Add the four box faces that are not intersected by the cylinder.
     triangles.extend(generate_non_intersected_faces(volume));

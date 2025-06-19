@@ -3,6 +3,7 @@
 pub mod stl;
 pub mod generator;
 pub mod csg;
+mod primitives;
 
 pub use stl::write_stl;
 pub use generator::generate_mesh_from_system;
