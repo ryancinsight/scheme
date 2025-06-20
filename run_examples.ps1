@@ -19,9 +19,10 @@ foreach ($section in $exampleSections | Select-Object -Skip 1) {
 # Loop through and run each example
 foreach ($name in $exampleNames) {
     Write-Host "Running example: $name"
-    cargo run --release --example $name
+    $env:RUST_MIN_STACK = 8388608 # 8 MB
+    cargo run --release --example $name --quiet
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "Error running example $name. Stopping."
+        Write-Host "Error running example $name. Stopping." -ForegroundColor Red
         exit 1
     }
 }

@@ -6,7 +6,7 @@ pub fn plot_geometry(
     system: &ChannelSystem,
     output_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (_root, mut chart, y_scale) = visualize(system, output_path, "Channel Schematic")?;
+    let (_root, mut chart, _y_scale) = visualize(system, output_path, "Channel Schematic")?;
 
     for channel in &system.channels {
         let p1 = system.nodes[channel.from_node].point;

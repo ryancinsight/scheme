@@ -1,4 +1,5 @@
-//! src/mesh/csg.rs
+//! src/mesh/operations/difference.rs
+
 use crate::geometry::mod_3d::{ChannelSystem3D, Cylinder, Volume};
 use crate::mesh::primitives::cuboid;
 use crate::mesh::primitives::cylinder::generate_walls;
@@ -19,7 +20,7 @@ enum Face {
     Top,   // +Z
 }
 
-pub fn hollow_out_system(system: &ChannelSystem3D) -> Result<Vec<Triangle>, &'static str> {
+pub fn difference(system: &ChannelSystem3D) -> Result<Vec<Triangle>, &'static str> {
     let mut triangles = Vec::new();
 
     for cylinder in &system.cylinders {
@@ -209,4 +210,4 @@ fn generate_pierced_face(
     }
 
     Ok(triangles)
-}
+} 
