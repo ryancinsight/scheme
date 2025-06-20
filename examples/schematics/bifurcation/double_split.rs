@@ -13,9 +13,9 @@ fn main() {
     let system = create_geometry(box_dims, &splits, &geo_config);
 
     println!("Plotting geometry...");
-    let output_dir = "outputs/schematics/bifurcation/double_split";
+    let output_dir = "outputs/schematics/bifurcation";
     fs::create_dir_all(output_dir).unwrap();
-    let output_path = format!("{}/layout.png", output_dir);
+    let output_path = format!("{}/double_split.png", output_dir);
 
     if let Err(e) = plot_geometry(&system, &output_path) {
         eprintln!("Error plotting geometry: {}", e);

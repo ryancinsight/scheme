@@ -127,20 +127,12 @@ name = "control_straight_channel"
 path = "examples/control/straight_channel.rs"
 
 [[example]]
-name = "basic_3d_box"
-path = "examples/3d/basic_box.rs"
+name = "control_basic_box"
+path = "examples/3d/control/basic_box.rs"
 
 [[example]]
-name = "basic_cylinder"
-path = "examples/3d/basic_cylinder.rs"
-
-[[example]]
-name = "cylinder_in_box"
-path = "examples/3d/control/cylinder_in_box.rs"
-
-[[example]]
-name = "hollow_box"
-path = "examples/3d/control/hollow_box.rs"
+name = "control_basic_cylinder"
+path = "examples/3d/control/basic_cylinder.rs"
 
 [[example]]
 name = "schematic_to_3d"

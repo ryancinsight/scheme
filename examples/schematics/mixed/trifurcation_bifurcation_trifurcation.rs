@@ -17,9 +17,9 @@ fn main() {
     let system = create_geometry(box_dims, &splits, &geo_config);
 
     println!("Plotting geometry...");
-    let output_dir = "outputs/schematics/mixed/trifurcation_bifurcation_trifurcation";
+    let output_dir = "outputs/schematics/mixed";
     fs::create_dir_all(output_dir).unwrap();
-    let output_path = format!("{}/layout.png", output_dir);
+    let output_path = format!("{}/trifurcation_bifurcation_trifurcation.png", output_dir);
 
     if let Err(e) = plot_geometry(&system, &output_path) {
         eprintln!("Error plotting geometry: {}", e);
