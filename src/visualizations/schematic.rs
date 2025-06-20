@@ -11,10 +11,9 @@ pub fn plot_geometry(
     for channel in &system.channels {
         let p1 = system.nodes[channel.from_node].point;
         let p2 = system.nodes[channel.to_node].point;
-        let stroke_width = (channel.width * y_scale).round() as u32;
         chart.draw_series(LineSeries::new(
             vec![p1, p2],
-            BLACK.stroke_width(stroke_width.max(1)),
+            BLACK.stroke_width(1),
         ))?;
     }
 
