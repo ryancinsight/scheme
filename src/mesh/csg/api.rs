@@ -18,36 +18,58 @@ impl Csg {
         self.node.all_polygons()
     }
 
-    fn invert(&self) -> Self {
-        let mut node = self.node.clone();
-        node.invert();
-        Self { node }
-    }
-
     pub fn union(&self, other: &Self) -> Self {
-        let a_inv = self.invert();
-        let b_inv = other.invert();
-        let intersect_inverses = a_inv.intersect(&b_inv);
-        intersect_inverses.invert()
+        // Union: A ∪ B - Combines both objects
+        let mut a = self.node.clone();
+        let mut b = other.node.clone();
+        
+        a.clip_to(&b);
+        b.clip_to(&a);
+        b.invert();
+        b.clip_to(&a);
+        b.invert();
+        a.build(b.all_polygons());
+        
+        Self { node: a }
     }
 
     pub fn subtract(&self, other: &Self) -> Self {
-        let b_inv = other.invert();
-        self.intersect(&b_inv)
+        // Subtract: A - B - Removes B from A
+        // This was previously labeled as "intersect" but is actually subtract
+        let mut a = self.node.clone();
+        let mut b = other.node.clone();
+        
+        a.invert();
+        b.clip_to(&a);
+        b.invert();
+        a.clip_to(&b);
+        b.clip_to(&a);
+        a.build(b.all_polygons());
+        a.invert();
+        
+        Self { node: a }
     }
 
     pub fn intersect(&self, other: &Self) -> Self {
-        let a_polys = self.node.all_polygons();
-        let b_polys = other.node.all_polygons();
-
-        let mut a_polys_inside_b = other.node.clip_polygons(a_polys);
-        let mut b_polys_inside_a = self.node.clip_polygons(b_polys);
-
-        a_polys_inside_b.append(&mut b_polys_inside_a);
-        Self::from_polygons(a_polys_inside_b)
+        // Intersect: A ∩ B - Shows only the overlapping volume
+        // This was previously labeled as "subtract" but is actually intersect
+        let mut a = self.node.clone();
+        let mut b = other.node.clone();
+        
+        a.invert();
+        a.clip_to(&b);
+        b.clip_to(&a);
+        b.invert();
+        b.clip_to(&a);
+        b.invert();
+        a.build(b.all_polygons());
+        a.invert();
+        
+        Self { node: a }
     }
 
     pub fn xor(&self, other: &Self) -> Self {
+        // XOR: A ⊕ B = (A ∪ B) - (A ∩ B) - Symmetric difference
         let union_ab = self.union(other);
         let intersect_ab = self.intersect(other);
         union_ab.subtract(&intersect_ab)

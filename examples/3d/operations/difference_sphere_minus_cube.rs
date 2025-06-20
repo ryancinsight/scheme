@@ -1,4 +1,4 @@
-//! examples/3d/operations/subtract_test.rs
+//! examples/3d/operations/difference_sphere_minus_cube.rs
 
 use pyvismil::{
     geometry::mod_3d::{ChannelSystem3D, Sphere, Volume},
@@ -11,8 +11,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(output_dir)?;
 
     // 1. Define two overlapping shapes: a cuboid and a sphere.
-    // NOTE: Using simplified geometry to prevent stack overflow with the current
-    // recursive CSG implementation.
     let cuboid_volume = Volume {
         min_corner: (-5.0, -5.0, -5.0),
         max_corner: (5.0, 5.0, 5.0),
@@ -27,9 +25,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cuboid_mesh = generate_cuboid(&cuboid_volume);
     let sphere_mesh = generate_sphere(&sphere, 12, 12);
 
-    // 3. Perform the Subtract operation (Cuboid - Sphere).
-    println!("Performing Subtract operation...");
-    let result_mesh = subtract(&cuboid_mesh, &sphere_mesh)?;
+    // 3. Perform the Difference operation (Sphere - Cube).
+    // This should create a sphere with a cubic hole in it
+    println!("Performing Difference operation (Sphere - Cube)...");
+    let result_mesh = subtract(&sphere_mesh, &cuboid_mesh)?;
 
     // 4. Plot the original shapes for context.
     println!("Plotting the original shapes...");
@@ -38,13 +37,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cylinders: vec![],
         spheres: vec![sphere.clone()],
     };
-    let plot_path = format!("{}/subtract_test.png", output_dir);
+    let plot_path = format!("{}/difference_sphere_minus_cube.png", output_dir);
     plot_3d_system(&original_system, &plot_path)?;
 
     // 5. Save the result to an STL file.
-    let stl_path = format!("{}/subtract.stl", output_dir);
+    let stl_path = format!("{}/difference_sphere_minus_cube.stl", output_dir);
     write_stl(&stl_path, &result_mesh)?;
 
-    println!("Subtract test finished. View the result in '{}' and the context plot in '{}'", stl_path, plot_path);
+    println!("Difference (Sphere - Cube) test finished.");
+    println!("Expected result: A sphere with a cubic hole carved out of it");
+    println!("View the result in '{}' and the context plot in '{}'", stl_path, plot_path);
     Ok(())
 } 

@@ -154,6 +154,14 @@ path = "examples/3d/operations/union_test.rs"
 name = "subtract_test"
 path = "examples/3d/operations/subtract_test.rs"
 
+[[example]]
+name = "difference_cube_minus_sphere"
+path = "examples/3d/operations/difference_cube_minus_sphere.rs"
+
+[[example]]
+name = "difference_sphere_minus_cube"
+path = "examples/3d/operations/difference_sphere_minus_cube.rs"
+
 [dev-dependencies]
 criterion = "0.5.1"
 
