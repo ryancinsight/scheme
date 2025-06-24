@@ -7,4 +7,4 @@ pub mod mod_3d;
 
 pub use cfd::plot_cfd_results;
 pub use schematic::plot_geometry;
-pub use mod_3d::plot_3d_system; 
+pub use mod_3d::{plot_3d_system, plot_mesh_result};

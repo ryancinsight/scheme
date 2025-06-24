@@ -20,8 +20,8 @@ pub fn convert_2d_to_3d(
             let p1 = system_2d.nodes[channel.from_node].point;
             let p2 = system_2d.nodes[channel.to_node].point;
             Cylinder {
-                start: (p1.0, p1.1, z_center),
-                end: (p2.0, p2.1, z_center),
+                start: (p1.0, p1.1, z_center), // Horizontal channel at center height
+                end: (p2.0, p2.1, z_center),   // Horizontal channel at center height
                 radius: channel.width / 2.0,
             }
         })
@@ -54,5 +54,7 @@ pub fn convert_2d_to_3d(
         box_volume,
         cylinders,
         spheres,
+        cones: Vec::new(),
+        tori: Vec::new(),
     }
-} 
+}

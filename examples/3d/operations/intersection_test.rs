@@ -3,7 +3,7 @@
 use pyvismil::{
     geometry::mod_3d::{ChannelSystem3D, Sphere, Volume},
     mesh::{operations::intersection, primitives::{generate_cuboid, generate_sphere}, write_stl},
-    visualizations::plot_3d_system,
+    visualizations::{plot_3d_system, plot_mesh_result},
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -11,6 +11,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(output_dir)?;
 
     // 1. Define two overlapping shapes: a cuboid and a sphere.
+    // Standardized CSG operation parameters for consistent testing
+    // Cube: 10x10x10 centered at origin
+    // Sphere: radius 7.0 centered at origin (extends beyond cube for meaningful operations)
     let cuboid_volume = Volume {
         min_corner: (-5.0, -5.0, -5.0),
         max_corner: (5.0, 5.0, 5.0),
@@ -25,6 +28,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         box_volume: cuboid_volume.clone(),
         cylinders: vec![],
         spheres: vec![sphere.clone()],
+        cones: vec![],
+        tori: vec![],
     };
 
     // 3. Generate the meshes for each shape.
@@ -40,14 +45,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mesh_path = format!("{}/intersection.stl", output_dir);
     write_stl(&mesh_path, &intersection_mesh)?;
 
-    // 6. Plot the original shapes for visualization.
-    let plot_path = format!("{}/intersection_test.png", output_dir);
-    println!("Plotting the original shapes...");
-    plot_3d_system(&system_3d, &plot_path)?;
+    // 6. Plot the input shapes for context.
+    let input_plot_path = format!("{}/intersection_input.png", output_dir);
+    println!("Plotting the input shapes...");
+    plot_3d_system(&system_3d, &input_plot_path)?;
+
+    // 7. Plot the computed intersection result.
+    let result_plot_path = format!("{}/intersection_result.png", output_dir);
+    println!("Plotting the intersection result...");
+    plot_mesh_result(&intersection_mesh, &result_plot_path, "Intersection Result")?;
 
     println!(
-        "Intersection test finished. View the result in '{}' and '{}'",
-        mesh_path, plot_path
+        "Intersection test finished. View the STL result in '{}', input shapes in '{}', and computed result in '{}'",
+        mesh_path, input_plot_path, result_plot_path
     );
 
     Ok(())

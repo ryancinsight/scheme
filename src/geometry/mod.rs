@@ -9,7 +9,7 @@ pub use self::{
     converter::convert_2d_to_3d,
     generator::create_geometry,
     mod_2d::{CfdResults, Channel, ChannelSystem, Node, Point2D, SplitType},
-    mod_3d::{ChannelSystem3D, Cylinder, Point3D, Volume},
+    mod_3d::{ChannelSystem3D, Cylinder, Point3D, Volume, Sphere, Cone},
 };
 
 pub type Point = Point2D;

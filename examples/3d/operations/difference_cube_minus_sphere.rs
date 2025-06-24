@@ -36,6 +36,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         box_volume: cuboid_volume.clone(),
         cylinders: vec![],
         spheres: vec![sphere.clone()],
+        cones: vec![],
+        tori: vec![],
     };
     let plot_path = format!("{}/difference_cube_minus_sphere.png", output_dir);
     plot_3d_system(&original_system, &plot_path)?;

@@ -25,7 +25,18 @@ pub fn generate(sphere: &Sphere, stacks: u32, sectors: u32) -> Vec<Triangle> {
             ]);
             vertices.push(vertex);
 
-            let normal = Vector::new([x as f32, y as f32, z as f32]);
+            // Normal for a sphere is the normalized direction from center to point
+            let normal_length = (x*x + y*y + z*z).sqrt();
+            let normal = if normal_length > 1e-6 {
+                Vector::new([
+                    (x / normal_length) as f32,
+                    (y / normal_length) as f32,
+                    (z / normal_length) as f32,
+                ])
+            } else {
+                // Fallback for degenerate case
+                Vector::new([0.0, 0.0, 1.0])
+            };
             normals.push(normal);
         }
     }

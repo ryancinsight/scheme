@@ -1,7 +1,6 @@
 //! src/mesh/primitives/cylinder.rs
 
 use crate::geometry::mod_3d::Cylinder;
-use spade::{ConstrainedDelaunayTriangulation, Point2, Triangulation};
 use stl_io::{Triangle, Vector};
 use std::f32::consts::PI;
 
@@ -32,17 +31,57 @@ pub fn generate_walls(cylinder: &Cylinder, flip_normals: bool) -> Vec<Triangle> 
     let mut start_vertices = Vec::with_capacity(SEGMENTS);
     let mut end_vertices = Vec::with_capacity(SEGMENTS);
 
+    let axis = [
+        end_center[0] - start_center[0],
+        end_center[1] - start_center[1],
+        end_center[2] - start_center[2],
+    ];
+    let mag = (axis[0].powi(2) + axis[1].powi(2) + axis[2].powi(2)).sqrt();
+    let axis_norm = if mag > 1e-6 {
+        [axis[0] / mag, axis[1] / mag, axis[2] / mag]
+    } else {
+        return triangles; // Cannot generate a zero-length cylinder
+    };
+
+    let temp_vec = if axis_norm[0].abs() < 0.9 {
+        [1.0, 0.0, 0.0]
+    } else {
+        [0.0, 1.0, 0.0]
+    };
+
+    let u_cross = [
+        axis_norm[1] * temp_vec[2] - axis_norm[2] * temp_vec[1],
+        axis_norm[2] * temp_vec[0] - axis_norm[0] * temp_vec[2],
+        axis_norm[0] * temp_vec[1] - axis_norm[1] * temp_vec[0],
+    ];
+    let u_mag = (u_cross[0].powi(2) + u_cross[1].powi(2) + u_cross[2].powi(2)).sqrt();
+    let u_norm = [u_cross[0] / u_mag, u_cross[1] / u_mag, u_cross[2] / u_mag];
+    
+    let v_cross = [
+        u_norm[1] * axis_norm[2] - u_norm[2] * axis_norm[1],
+        u_norm[2] * axis_norm[0] - u_norm[0] * axis_norm[2],
+        u_norm[0] * axis_norm[1] - u_norm[1] * axis_norm[0],
+    ];
+    let v_mag = (v_cross[0].powi(2) + v_cross[1].powi(2) + v_cross[2].powi(2)).sqrt();
+    let v_norm = [v_cross[0] / v_mag, v_cross[1] / v_mag, v_cross[2] / v_mag];
+
+
     for i in 0..SEGMENTS {
         let theta = (i as f32 / SEGMENTS as f32) * 2.0 * PI;
-        let y_offset = r * theta.cos();
-        let z_offset = r * theta.sin();
+        let cos_theta = theta.cos();
+        let sin_theta = theta.sin();
+
+        let x_offset = r * (cos_theta * u_norm[0] + sin_theta * v_norm[0]);
+        let y_offset = r * (cos_theta * u_norm[1] + sin_theta * v_norm[1]);
+        let z_offset = r * (cos_theta * u_norm[2] + sin_theta * v_norm[2]);
+
         start_vertices.push([
-            start_center[0],
+            start_center[0] + x_offset,
             start_center[1] + y_offset,
             start_center[2] + z_offset,
         ]);
         end_vertices.push([
-            end_center[0],
+            end_center[0] + x_offset,
             end_center[1] + y_offset,
             end_center[2] + z_offset,
         ]);
@@ -55,15 +94,24 @@ pub fn generate_walls(cylinder: &Cylinder, flip_normals: bool) -> Vec<Triangle> 
         let e1 = end_vertices[i];
         let e2 = end_vertices[j];
 
-        let wall_normal_vec = [0.0, s1[1] - start_center[1], s1[2] - start_center[2]];
-        let mag = (wall_normal_vec[1].powi(2) + wall_normal_vec[2].powi(2)).sqrt();
+        let wall_normal_vec = [
+            s1[0] - start_center[0], 
+            s1[1] - start_center[1], 
+            s1[2] - start_center[2]
+        ];
+        let mag = (wall_normal_vec[0].powi(2) + wall_normal_vec[1].powi(2) + wall_normal_vec[2].powi(2)).sqrt();
         let mut normal = if mag > 1e-6 {
-            [0.0, wall_normal_vec[1] / mag, wall_normal_vec[2] / mag]
+            [
+                wall_normal_vec[0] / mag, 
+                wall_normal_vec[1] / mag, 
+                wall_normal_vec[2] / mag
+            ]
         } else {
             [0.0, 1.0, 0.0]
         };
 
         if flip_normals {
+            normal[0] *= -1.0;
             normal[1] *= -1.0;
             normal[2] *= -1.0;
         }
@@ -97,9 +145,21 @@ pub fn generate_caps(cylinder: &Cylinder) -> Vec<Triangle> {
         cylinder.end.1 as f32,
         cylinder.end.2 as f32,
     ];
+    
+    let axis = [
+        end_center[0] - start_center[0],
+        end_center[1] - start_center[1],
+        end_center[2] - start_center[2],
+    ];
+    let mag = (axis[0].powi(2) + axis[1].powi(2) + axis[2].powi(2)).sqrt();
+    let axis_norm = if mag > 1e-6 {
+        [axis[0] / mag, axis[1] / mag, axis[2] / mag]
+    } else {
+        return triangles;
+    };
 
-    let start_normal = Vector::new([-1.0, 0.0, 0.0]);
-    let end_normal = Vector::new([1.0, 0.0, 0.0]);
+    let start_normal = Vector::new([-axis_norm[0], -axis_norm[1], -axis_norm[2]]);
+    let end_normal = Vector::new(axis_norm);
 
     triangles.extend(generate_single_cap(start_center, r, start_normal));
     triangles.extend(generate_single_cap(end_center, r, end_normal));
@@ -107,49 +167,67 @@ pub fn generate_caps(cylinder: &Cylinder) -> Vec<Triangle> {
     triangles
 }
 
-/// Uses a 2D triangulation library to generate a mesh for a single cylinder cap.
+/// Uses a simple fan triangulation to generate a mesh for a single cylinder cap.
 fn generate_single_cap(center: [f32; 3], radius: f32, normal: Vector<f32>) -> Vec<Triangle> {
-    let mut cdt = ConstrainedDelaunayTriangulation::<Point2<f32>>::new();
+    let mut triangles = Vec::new();
+    let axis_norm = [normal[0], normal[1], normal[2]];
 
-    // Define the circular boundary constraint
-    let mut cap_vertices = Vec::new();
+    let temp_vec = if axis_norm[0].abs() < 0.9 {
+        [1.0, 0.0, 0.0]
+    } else {
+        [0.0, 1.0, 0.0]
+    };
+
+    let u_cross = [
+        axis_norm[1] * temp_vec[2] - axis_norm[2] * temp_vec[1],
+        axis_norm[2] * temp_vec[0] - axis_norm[0] * temp_vec[2],
+        axis_norm[0] * temp_vec[1] - axis_norm[1] * temp_vec[0],
+    ];
+    let u_mag = (u_cross[0].powi(2) + u_cross[1].powi(2) + u_cross[2].powi(2)).sqrt();
+    let u_norm = [u_cross[0] / u_mag, u_cross[1] / u_mag, u_cross[2] / u_mag];
+
+    let v_cross = [
+        u_norm[1] * axis_norm[2] - u_norm[2] * axis_norm[1],
+        u_norm[2] * axis_norm[0] - u_norm[0] * axis_norm[2],
+        u_norm[0] * axis_norm[1] - u_norm[1] * axis_norm[0],
+    ];
+    let v_mag = (v_cross[0].powi(2) + v_cross[1].powi(2) + v_cross[2].powi(2)).sqrt();
+    let v_norm = [v_cross[0] / v_mag, v_cross[1] / v_mag, v_cross[2] / v_mag];
+
+    let mut cap_vertices = Vec::with_capacity(SEGMENTS);
     for i in 0..SEGMENTS {
         let theta = (i as f32 / SEGMENTS as f32) * 2.0 * PI;
-        let u = radius * theta.cos(); // Local 2D coordinates (Y-axis)
-        let v = radius * theta.sin(); // Local 2D coordinates (Z-axis)
-        if let Ok(handle) = cdt.insert(Point2::new(u, v)) {
-            cap_vertices.push(handle);
-        }
+        let u_coord = radius * theta.cos();
+        let v_coord = radius * theta.sin();
+
+        cap_vertices.push(Vector::new([
+            center[0] + u_coord * u_norm[0] + v_coord * v_norm[0],
+            center[1] + u_coord * u_norm[1] + v_coord * v_norm[1],
+            center[2] + u_coord * u_norm[2] + v_coord * v_norm[2],
+        ]));
     }
+
+    let center_v = Vector::new(center);
     for i in 0..SEGMENTS {
-        cdt.add_constraint(cap_vertices[i], cap_vertices[(i + 1) % SEGMENTS]);
-    }
+        let p1 = cap_vertices[i];
+        let p2 = cap_vertices[(i + 1) % SEGMENTS];
 
-    // Triangulate the constrained area and lift to 3D
-    let mut triangles = Vec::new();
-    for face in cdt.inner_faces() {
-        let handles = face.vertices();
-        let p1_2d = handles[0].position();
-        let p2_2d = handles[1].position();
-        let p3_2d = handles[2].position();
+        let edge1 = Vector::new([p1[0] - center_v[0], p1[1] - center_v[1], p1[2] - center_v[2]]);
+        let edge2 = Vector::new([p2[0] - center_v[0], p2[1] - center_v[1], p2[2] - center_v[2]]);
+        let cross = super::cuboid::cross_product(edge1, edge2);
 
-        // The 2D (u,v) plane corresponds to the 3D (y,z) plane.
-        let v1_3d = Vector::new([center[0], center[1] + p1_2d.x, center[2] + p1_2d.y]);
-        let v2_3d = Vector::new([center[0], center[1] + p2_2d.x, center[2] + p2_2d.y]);
-        let v3_3d = Vector::new([center[0], center[1] + p3_2d.x, center[2] + p3_2d.y]);
-
-        // Ensure correct winding order based on the normal
-        if normal[0] > 0.0 { // End cap (+X normal)
+        if super::cuboid::dot_product(cross, normal) > 0.0 {
             triangles.push(Triangle {
                 normal: normal.clone(),
-                vertices: [v1_3d, v2_3d, v3_3d],
+                vertices: [center_v, p1, p2],
             });
-        } else { // Start cap (-X normal)
+        } else {
             triangles.push(Triangle {
                 normal: normal.clone(),
-                vertices: [v1_3d, v3_3d, v2_3d],
+                vertices: [center_v, p2, p1],
             });
         }
     }
+
     triangles
-} 
+}

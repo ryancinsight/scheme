@@ -5,8 +5,11 @@
 $env:RUST_MIN_STACK = 8388608 # 8 MB
 
 $all_3d_examples = @(
-    "control_basic_box",
-    "control_basic_cylinder",
+    "basic_box",
+    "basic_cone",
+    "basic_cylinder",
+    "basic_sphere",
+    "basic_torus",
     "schematic_to_3d",
     "intersection_test",
     "xor_test",

@@ -9,6 +9,7 @@ nalgebra = "0.32.3"
 stl_io = "0.6.0"
 spade = "2.2.0"
 thiserror = "1.0.56"
+csgrs = { path = "../csgrs" }
 
 [[example]]
 name = "single_split"
@@ -127,12 +128,24 @@ name = "control_straight_channel"
 path = "examples/control/straight_channel.rs"
 
 [[example]]
-name = "control_basic_box"
-path = "examples/3d/control/basic_box.rs"
+name = "basic_box"
+path = "examples/3d/primitives/basic_box.rs"
 
 [[example]]
-name = "control_basic_cylinder"
-path = "examples/3d/control/basic_cylinder.rs"
+name = "basic_cylinder"
+path = "examples/3d/primitives/basic_cylinder.rs"
+
+[[example]]
+name = "basic_sphere"
+path = "examples/3d/primitives/basic_sphere.rs"
+
+[[example]]
+name = "basic_cone"
+path = "examples/3d/primitives/basic_cone.rs"
+
+[[example]]
+name = "basic_torus"
+path = "examples/3d/primitives/basic_torus.rs"
 
 [[example]]
 name = "schematic_to_3d"

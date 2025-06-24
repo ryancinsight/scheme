@@ -49,12 +49,32 @@ pub struct Sphere {
     pub radius: f64,
 }
 
+/// Represents a cone or frustum defined by its start and end points, and their respective radii.
+/// If one radius is 0, it forms a cone; otherwise, it's a frustum.
+#[derive(Debug, Clone)]
+pub struct Cone {
+    pub start: Point3D,
+    pub end: Point3D,
+    pub start_radius: f64,
+    pub end_radius: f64,
+}
+
+/// Represents a torus (donut) defined by its center, major radius, and minor radius.
+#[derive(Debug, Clone)]
+pub struct Torus {
+    pub center: Point3D,
+    pub major_radius: f64,
+    pub minor_radius: f64,
+}
+
 /// Represents the entire 3D channel system.
 #[derive(Debug, Clone)]
 pub struct ChannelSystem3D {
     pub box_volume: Volume,
     pub cylinders: Vec<Cylinder>,
     pub spheres: Vec<Sphere>,
+    pub cones: Vec<Cone>,
+    pub tori: Vec<Torus>,
 }
 
 impl ChannelSystem3D {
@@ -96,6 +116,33 @@ impl ChannelSystem3D {
             ));
         }
 
+        for cone in &self.cones {
+            points_to_bound.push((
+                cone.start.0.min(cone.end.0) - cone.start_radius.max(cone.end_radius),
+                cone.start.1.min(cone.end.1) - cone.start_radius.max(cone.end_radius),
+                cone.start.2.min(cone.end.2) - cone.start_radius.max(cone.end_radius),
+            ));
+            points_to_bound.push((
+                cone.start.0.max(cone.end.0) + cone.start_radius.max(cone.end_radius),
+                cone.start.1.max(cone.end.1) + cone.start_radius.max(cone.end_radius),
+                cone.start.2.max(cone.end.2) + cone.start_radius.max(cone.end_radius),
+            ));
+        }
+
+        for torus in &self.tori {
+            let total_radius = torus.major_radius + torus.minor_radius;
+            points_to_bound.push((
+                torus.center.0 - total_radius,
+                torus.center.1 - total_radius,
+                torus.center.2 - torus.minor_radius,
+            ));
+            points_to_bound.push((
+                torus.center.0 + total_radius,
+                torus.center.1 + total_radius,
+                torus.center.2 + torus.minor_radius,
+            ));
+        }
+
         if points_to_bound.is_empty() {
             return ((-1.0, -1.0, -1.0), (1.0, 1.0, 1.0)); // Default bounding box
         }
@@ -114,4 +161,4 @@ impl ChannelSystem3D {
 
         (min_p, max_p)
     }
-} 
+}
