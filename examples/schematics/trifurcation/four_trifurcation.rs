@@ -1,4 +1,4 @@
-use pyvismil::{
+use scheme::{
     config::GeometryConfig,
     geometry::{create_geometry, SplitType},
     visualizations::plot_geometry,

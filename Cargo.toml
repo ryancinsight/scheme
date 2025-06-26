@@ -1,15 +1,16 @@
 [package]
-name = "pyvismil"
+name = "scheme"
 version = "0.1.0"
 edition = "2021"
+description = "A focused library for designing 2D microfluidic schematics with bifurcation and trifurcation patterns"
+license = "MIT"
+repository = "https://github.com/ryancinsight/Millimesh2"
+keywords = ["microfluidics", "schematic", "2d", "bifurcation", "trifurcation"]
+categories = ["science", "visualization"]
 
 [dependencies]
 plotters = "0.3.5"
-nalgebra = "0.32.3"
-stl_io = "0.6.0"
-spade = "2.2.0"
 thiserror = "1.0.56"
-csgrs = { path = "../csgrs" }
 
 [[example]]
 name = "single_split"
@@ -75,105 +76,8 @@ path = "examples/schematics/mixed/bifurcation_trifurcation_bifurcation.rs"
 name = "trifurcation_bifurcation_trifurcation"
 path = "examples/schematics/mixed/trifurcation_bifurcation_trifurcation.rs"
 
-[[example]]
-name = "cfd_single_bifurcation"
-path = "examples/cfd/bifurcation/single_split.rs"
-
-[[example]]
-name = "cfd_single_trifurcation"
-path = "examples/cfd/trifurcation/single_trifurcation.rs"
-
-[[example]]
-name = "cfd_mixed_bifurcation_trifurcation"
-path = "examples/cfd/mixed/bifurcation_trifurcation.rs"
-
-[[example]]
-name = "cfd_double_bifurcation"
-path = "examples/cfd/bifurcation/double_split.rs"
-
-[[example]]
-name = "cfd_triple_bifurcation"
-path = "examples/cfd/bifurcation/triple_split.rs"
-
-[[example]]
-name = "cfd_double_trifurcation"
-path = "examples/cfd/trifurcation/double_trifurcation.rs"
-
-[[example]]
-name = "cfd_triple_trifurcation"
-path = "examples/cfd/trifurcation/triple_trifurcation.rs"
-
-[[example]]
-name = "cfd_mixed_trifurcation_bifurcation"
-path = "examples/cfd/mixed/trifurcation_bifurcation.rs"
-
-[[example]]
-name = "cfd_mixed_bifurcation_bifurcation_trifurcation"
-path = "examples/cfd/mixed/bifurcation_bifurcation_trifurcation.rs"
-
-[[example]]
-name = "cfd_mixed_bifurcation_trifurcation_bifurcation"
-path = "examples/cfd/mixed/bifurcation_trifurcation_bifurcation.rs"
-
-[[example]]
-name = "cfd_mixed_trifurcation_bifurcation_trifurcation"
-path = "examples/cfd/mixed/trifurcation_bifurcation_trifurcation.rs"
-
-[[example]]
-name = "cfd_mixed_trifurcation_trifurcation_bifurcation"
-path = "examples/cfd/mixed/trifurcation_trifurcation_bifurcation.rs"
-
-[[example]]
-name = "control_straight_channel"
-path = "examples/control/straight_channel.rs"
-
-[[example]]
-name = "basic_box"
-path = "examples/3d/primitives/basic_box.rs"
-
-[[example]]
-name = "basic_cylinder"
-path = "examples/3d/primitives/basic_cylinder.rs"
-
-[[example]]
-name = "basic_sphere"
-path = "examples/3d/primitives/basic_sphere.rs"
-
-[[example]]
-name = "basic_cone"
-path = "examples/3d/primitives/basic_cone.rs"
-
-[[example]]
-name = "basic_torus"
-path = "examples/3d/primitives/basic_torus.rs"
-
-[[example]]
-name = "schematic_to_3d"
-path = "examples/3d/schematic_to_3d.rs"
-
-[[example]]
-name = "intersection_test"
-path = "examples/3d/operations/intersection_test.rs"
-
-[[example]]
-name = "xor_test"
-path = "examples/3d/operations/xor_test.rs"
-
-[[example]]
-name = "union_test"
-path = "examples/3d/operations/union_test.rs"
-
-[[example]]
-name = "subtract_test"
-path = "examples/3d/operations/subtract_test.rs"
-
-[[example]]
-name = "difference_cube_minus_sphere"
-path = "examples/3d/operations/difference_cube_minus_sphere.rs"
-
-[[example]]
-name = "difference_sphere_minus_cube"
-path = "examples/3d/operations/difference_sphere_minus_cube.rs"
+# All 3D, CFD, and control examples have been removed
+# PyVismil now focuses exclusively on 2D schematic generation
 
 [dev-dependencies]
 criterion = "0.5.1"

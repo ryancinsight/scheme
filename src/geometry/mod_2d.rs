@@ -1,6 +1,6 @@
 //! geometry/mod_2d.rs
 
-use std::sync::Arc;
+// Arc import removed - no longer needed for 2D-only functionality
 
 pub type Point2D = (f64, f64);
 
@@ -51,10 +51,4 @@ impl SplitType {
     }
 }
 
-/// Holds the results of a CFD simulation, linking them to the geometry.
-pub struct CfdResults {
-    pub system: Arc<ChannelSystem>,
-    pub node_pressures: std::collections::HashMap<usize, f64>,
-    pub channel_flow_rates: std::collections::HashMap<usize, f64>,
-    pub channel_resistances: std::collections::HashMap<usize, f64>,
-} 
+// CFD functionality removed - Scheme focuses exclusively on 2D schematic design

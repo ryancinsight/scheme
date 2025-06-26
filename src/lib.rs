@@ -1,10 +1,25 @@
-//! lib.rs
+//! Scheme - 2D Microfluidic Schematic Design Library
+//!
+//! A focused library for designing 2D microfluidic schematics with support for
+//! bifurcation and trifurcation patterns, channel layout algorithms, and
+//! schematic visualization.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use scheme::{geometry::create_geometry, config::GeometryConfig, geometry::SplitType};
+//!
+//! let config = GeometryConfig::default();
+//! let system = create_geometry(
+//!     (200.0, 100.0),  // box dimensions
+//!     &[SplitType::Bifurcation],  // split pattern
+//!     &config,
+//! );
+//! ```
 
-pub mod cfd;
 pub mod geometry;
 pub mod visualizations;
 pub mod config;
 pub mod error;
-pub mod mesh;
 
-pub use visualizations::{plot_cfd_results, plot_geometry}; 
+pub use visualizations::plot_geometry;

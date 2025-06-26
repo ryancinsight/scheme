@@ -1,4 +1,6 @@
-//! src/config.rs
+//! src/config.rs - 2D Schematic Configuration
+//!
+//! Configuration structures for 2D microfluidic schematic generation in Scheme.
 
 #[derive(Clone, Copy, Debug)]
 pub struct GeometryConfig {
@@ -17,32 +19,4 @@ impl Default for GeometryConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct CfdConfig {
-    pub dynamic_viscosity: f64,
-    pub inlet_pressure: f64,
-    pub outlet_pressure: f64,
-}
-
-impl Default for CfdConfig {
-    fn default() -> Self {
-        Self {
-            dynamic_viscosity: 0.001, // Water at 20°C (Pa·s)
-            inlet_pressure: 1.0,
-            outlet_pressure: 0.0,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct ConversionConfig {
-    pub box_z_height: f64,
-}
-
-impl Default for ConversionConfig {
-    fn default() -> Self {
-        Self {
-            box_z_height: 10.0,
-        }
-    }
-} 
+// CFD and 3D conversion configurations removed - Scheme focuses on 2D schematics only
