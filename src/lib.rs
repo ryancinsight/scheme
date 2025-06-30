@@ -7,13 +7,18 @@
 //! # Examples
 //!
 //! ```rust
-//! use scheme::{geometry::create_geometry, config::GeometryConfig, geometry::SplitType};
+//! use scheme::{
+//!     geometry::generator::create_geometry, 
+//!     config::{GeometryConfig, ChannelTypeConfig}, 
+//!     geometry::SplitType
+//! };
 //!
 //! let config = GeometryConfig::default();
 //! let system = create_geometry(
 //!     (200.0, 100.0),  // box dimensions
 //!     &[SplitType::Bifurcation],  // split pattern
 //!     &config,
+//!     &ChannelTypeConfig::AllStraight,  // channel type configuration
 //! );
 //! ```
 
@@ -22,4 +27,4 @@ pub mod visualizations;
 pub mod config;
 pub mod error;
 
-pub use visualizations::plot_geometry;
+pub use visualizations::schematic::plot_geometry;

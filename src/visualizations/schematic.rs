@@ -6,17 +6,16 @@ pub fn plot_geometry(
     system: &ChannelSystem,
     output_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (_root, mut chart, _y_scale) = visualize(system, output_path, "Channel Schematic")?;
+    let (root, mut chart, _y_scale) = visualize(system, output_path, "Channel Schematic")?;
 
-    for channel in &system.channels {
-        let p1 = system.nodes[channel.from_node].point;
-        let p2 = system.nodes[channel.to_node].point;
-        chart.draw_series(LineSeries::new(
-            vec![p1, p2],
-            BLACK.stroke_width(1),
-        ))?;
-    }
+    let lines = system.get_lines();
 
-    println!("Schematic plot saved to {}", output_path);
+    chart.draw_series(
+        lines.iter().map(|(p1, p2)| PathElement::new(vec![*p1, *p2], &BLACK))
+    )?;
+
+    root.present()?;
+
+    println!("Schematic plot saved to {output_path}");
     Ok(())
 } 

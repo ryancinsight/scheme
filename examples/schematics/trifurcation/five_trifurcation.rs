@@ -1,7 +1,7 @@
 use scheme::{
-    config::GeometryConfig,
-    geometry::{create_geometry, SplitType},
-    visualizations::plot_geometry,
+    config::{GeometryConfig, ChannelTypeConfig},
+    geometry::{generator::create_geometry, SplitType},
+    visualizations::schematic::plot_geometry,
 };
 use std::fs;
 
@@ -16,7 +16,8 @@ fn main() {
         SplitType::Trifurcation,
     ];
     let geo_config = GeometryConfig::default();
-    let system = create_geometry(box_dims, &splits, &geo_config);
+    let channel_config = ChannelTypeConfig::AllStraight;
+    let system = create_geometry(box_dims, &splits, &geo_config, &channel_config);
 
     println!("Plotting geometry...");
     let output_dir = "outputs/schematics/trifurcation";

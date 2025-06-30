@@ -76,8 +76,37 @@ path = "examples/schematics/mixed/bifurcation_trifurcation_bifurcation.rs"
 name = "trifurcation_bifurcation_trifurcation"
 path = "examples/schematics/mixed/trifurcation_bifurcation_trifurcation.rs"
 
-# All 3D, CFD, and control examples have been removed
-# PyVismil now focuses exclusively on 2D schematic generation
+[[example]]
+name = "serpentine_bifurcation_single"
+path = "examples/schematics/serpentine/bifurcation_single.rs"
+
+[[example]]
+name = "serpentine_bifurcation_double"
+path = "examples/schematics/serpentine/bifurcation_double.rs"
+
+[[example]]
+name = "serpentine_bifurcation_triple"
+path = "examples/schematics/serpentine/bifurcation_triple.rs"
+
+[[example]]
+name = "serpentine_trifurcation_single"
+path = "examples/schematics/serpentine/trifurcation_single.rs"
+
+[[example]]
+name = "serpentine_trifurcation_double"
+path = "examples/schematics/serpentine/trifurcation_double.rs"
+
+[[example]]
+name = "serpentine_trifurcation_triple"
+path = "examples/schematics/serpentine/trifurcation_triple.rs"
+
+[[example]]
+name = "serpentine_bifurcation_trifurcation"
+path = "examples/schematics/serpentine/bifurcation_trifurcation.rs"
+
+[[example]]
+name = "single_serpentine_channel"
+path = "examples/schematics/serpentine/single_serpentine_channel.rs"
 
 [dev-dependencies]
 criterion = "0.5.1"

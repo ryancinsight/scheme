@@ -8,7 +8,7 @@ pub mod mod_2d;
 
 pub use self::{
     generator::create_geometry,
-    mod_2d::{Channel, ChannelSystem, Node, Point2D, SplitType},
+    mod_2d::{Channel, ChannelSystem, ChannelType, Node, Point2D, SplitType},
 };
 
 pub type Point = Point2D;
