@@ -14,6 +14,7 @@ pub struct Node {
 pub enum ChannelType {
     Straight,
     Serpentine { path: Vec<Point2D> },
+    Arc { path: Vec<Point2D> },
 }
 
 impl Default for ChannelType {
@@ -50,7 +51,7 @@ impl ChannelSystem {
                     let to = self.nodes[channel.to_node].point;
                     lines.push((from, to));
                 }
-                ChannelType::Serpentine { path } => {
+                ChannelType::Serpentine { path } | ChannelType::Arc { path } => {
                     for i in 0..path.len() - 1 {
                         lines.push((path[i], path[i + 1]));
                     }
@@ -64,7 +65,7 @@ impl ChannelSystem {
         self.channels
             .iter()
             .filter_map(|c| match &c.channel_type {
-                ChannelType::Serpentine { path } => Some(path.clone()),
+                ChannelType::Serpentine { path } | ChannelType::Arc { path } => Some(path.clone()),
                 _ => None,
             })
             .collect()

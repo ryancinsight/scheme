@@ -29,6 +29,12 @@ pub struct SerpentineConfig {
     pub wave_density_factor: f64, // Controls how many waves appear relative to channel length (higher = more waves)
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct ArcConfig {
+    pub curvature_factor: f64,    // Controls how curved the arc is (0.0 = straight, 1.0 = semicircle)
+    pub smoothness: usize,        // Number of points to generate along the arc (higher = smoother)
+}
+
 impl Default for SerpentineConfig {
     fn default() -> Self {
         Self {
@@ -40,19 +46,37 @@ impl Default for SerpentineConfig {
     }
 }
 
+impl Default for ArcConfig {
+    fn default() -> Self {
+        Self {
+            curvature_factor: 0.3,   // Moderate curvature for natural appearance
+            smoothness: 20,          // Good balance between smoothness and performance
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ChannelTypeConfig {
     AllStraight,
     AllSerpentine(SerpentineConfig),
-    MixedByPosition { middle_zone_fraction: f64, serpentine_config: SerpentineConfig },
+    AllArcs(ArcConfig),
+    MixedByPosition { 
+        middle_zone_fraction: f64, 
+        serpentine_config: SerpentineConfig,
+        arc_config: ArcConfig,
+    },
+    Smart { 
+        serpentine_config: SerpentineConfig,
+        arc_config: ArcConfig,
+    },
     Custom(fn(from: (f64, f64), to: (f64, f64), box_dims: (f64, f64)) -> ChannelType),
 }
 
 impl Default for ChannelTypeConfig {
     fn default() -> Self {
-        ChannelTypeConfig::MixedByPosition {
-            middle_zone_fraction: 0.4,
+        ChannelTypeConfig::Smart {
             serpentine_config: SerpentineConfig::default(),
+            arc_config: ArcConfig::default(),
         }
     }
 }

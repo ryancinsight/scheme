@@ -108,6 +108,30 @@ path = "examples/schematics/serpentine/bifurcation_trifurcation.rs"
 name = "single_serpentine_channel"
 path = "examples/schematics/serpentine/single_serpentine_channel.rs"
 
+[[example]]
+name = "bifurcation_arcs"
+path = "examples/schematics/arcs/bifurcation_arcs.rs"
+
+[[example]]
+name = "trifurcation_arcs"
+path = "examples/schematics/arcs/trifurcation_arcs.rs"
+
+[[example]]
+name = "smart_mixed_channels"
+path = "examples/schematics/arcs/smart_mixed_channels.rs"
+
+[[example]]
+name = "variable_curvature"
+path = "examples/schematics/arcs/variable_curvature.rs"
+
+[[example]]
+name = "directional_flow_arcs"
+path = "examples/schematics/arcs/directional_flow_arcs.rs"
+
+[[example]]
+name = "enhanced_directional_arcs"
+path = "examples/schematics/arcs/enhanced_directional_arcs.rs"
+
 [dev-dependencies]
 criterion = "0.5.1"
 

@@ -1,6 +1,31 @@
 use super::mod_2d::{Channel, ChannelSystem, ChannelType, Node, Point2D, SplitType};
-use crate::config::{ChannelTypeConfig, GeometryConfig, SerpentineConfig};
+use crate::config::{ChannelTypeConfig, GeometryConfig, SerpentineConfig, ArcConfig};
 use std::collections::HashMap;
+
+/// Flow phase enumeration for enhanced arc direction calculation
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum FlowPhase {
+    Diverging,  // Channels spreading outward from center
+    Converging, // Channels coming together toward center
+    Mixed,      // Transitional or complex flow patterns
+}
+
+/// Local position relative to the center line
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum LocalPosition {
+    Upper,  // Above center line
+    Center, // Near center line
+    Lower,  // Below center line
+}
+
+/// Junction context for enhanced curvature decisions
+#[derive(Debug, Clone)]
+struct JunctionContext {
+    near_inlet_junction: bool,
+    near_outlet_junction: bool,
+    is_junction_connector: bool,
+    vertical_displacement: f64,
+}
 
 struct GeometryGenerator {
     box_dims: (f64, f64),
@@ -54,7 +79,8 @@ impl GeometryGenerator {
         match self.channel_type_config {
             ChannelTypeConfig::AllStraight => ChannelType::Straight,
             ChannelTypeConfig::AllSerpentine(config) => self.create_serpentine_type(p1, p2, config, None),
-            ChannelTypeConfig::MixedByPosition { middle_zone_fraction, serpentine_config } => {
+            ChannelTypeConfig::AllArcs(config) => self.create_arc_type(p1, p2, config),
+            ChannelTypeConfig::MixedByPosition { middle_zone_fraction, serpentine_config, arc_config } => {
                 let (length, _) = self.box_dims;
                 let mid_x = length / 2.0;
                 let channel_mid_x = (p1.0 + p2.0) / 2.0;
@@ -62,9 +88,14 @@ impl GeometryGenerator {
                 
                 if (channel_mid_x - mid_x).abs() < tolerance {
                     self.create_serpentine_type(p1, p2, serpentine_config, None)
+                } else if self.is_angled_channel(p1, p2) {
+                    self.create_arc_type(p1, p2, arc_config)
                 } else {
                     ChannelType::Straight
                 }
+            }
+            ChannelTypeConfig::Smart { serpentine_config, arc_config } => {
+                self.determine_smart_channel_type(p1, p2, serpentine_config, arc_config)
             }
             ChannelTypeConfig::Custom(func) => func(p1, p2, self.box_dims),
         }
@@ -171,7 +202,271 @@ impl GeometryGenerator {
         (max_safe_amplitude * enhanced_fill_factor).max(self.config.channel_width * 0.5)
     }
 
+    /// Create an arc channel type
+    fn create_arc_type(&self, p1: Point2D, p2: Point2D, config: ArcConfig) -> ChannelType {
+        let path = self.generate_arc_path(p1, p2, config);
+        ChannelType::Arc { path }
+    }
 
+    /// Generate a smooth arc path between two points with enhanced directional awareness
+    fn generate_arc_path(&self, p1: Point2D, p2: Point2D, config: ArcConfig) -> Vec<Point2D> {
+        let mut path = Vec::with_capacity(config.smoothness + 2);
+        
+        // Calculate the direction and distance
+        let dx = p2.0 - p1.0;
+        let dy = p2.1 - p1.1;
+        let distance = (dx * dx + dy * dy).sqrt();
+        
+        // For very short channels or zero curvature, just return a straight line
+        if distance < 1e-6 || config.curvature_factor < 1e-6 {
+            path.push(p1);
+            path.push(p2);
+            return path;
+        }
+        
+        // Calculate the control point for the arc with enhanced directional awareness
+        let mid_x = (p1.0 + p2.0) / 2.0;
+        let mid_y = (p1.1 + p2.1) / 2.0;
+        
+        // Calculate directional arc curvature with enhanced context
+        let arc_direction = self.calculate_enhanced_arc_direction(p1, p2);
+        
+        // Calculate perpendicular direction for arc curvature
+        let perp_x = -dy / distance;
+        let perp_y = dx / distance;
+        
+        // Apply directional multiplier
+        let directed_perp_x = perp_x * arc_direction;
+        let directed_perp_y = perp_y * arc_direction;
+        
+        // Arc height based on curvature factor and distance
+        let arc_height = distance * config.curvature_factor * 0.5;
+        
+        // Control point offset from midpoint
+        let control_x = mid_x + directed_perp_x * arc_height;
+        let control_y = mid_y + directed_perp_y * arc_height;
+        
+        // Generate points along the quadratic Bezier curve
+        path.push(p1);
+        
+        for i in 1..config.smoothness + 1 {
+            let t = i as f64 / (config.smoothness + 1) as f64;
+            let t_inv = 1.0 - t;
+            
+            // Quadratic Bezier formula: B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
+            let x = t_inv * t_inv * p1.0 + 2.0 * t_inv * t * control_x + t * t * p2.0;
+            let y = t_inv * t_inv * p1.1 + 2.0 * t_inv * t * control_y + t * t * p2.1;
+            
+            path.push((x, y));
+        }
+        
+        path.push(p2);
+        path
+    }
+
+    /// Enhanced arc direction calculation with better context awareness
+    fn calculate_enhanced_arc_direction(&self, p1: Point2D, p2: Point2D) -> f64 {
+        let dx = p2.0 - p1.0;
+        let dy = p2.1 - p1.1;
+        
+        // Check if this is a mostly horizontal channel
+        let is_mostly_horizontal = dy.abs() < dx.abs() * 0.5;
+        
+        if is_mostly_horizontal {
+            // For mostly horizontal channels, apply subtle curvature based on position
+            let box_center_y = self.box_dims.1 / 2.0;
+            let channel_center_y = (p1.1 + p2.1) / 2.0;
+            let is_above_center = channel_center_y > box_center_y;
+            
+            // Subtle curvature to maintain flow naturalness
+            return if is_above_center { 0.2 } else { -0.2 };
+        }
+        
+        // Enhanced flow phase detection
+        let flow_phase = self.determine_flow_phase(p1, p2);
+        let local_position = self.analyze_local_position(p1, p2);
+        let junction_context = self.analyze_junction_context(p1, p2);
+        
+        // Calculate base direction using flow physics
+        let base_direction = self.calculate_flow_based_direction(p1, p2, flow_phase, local_position);
+        
+        // Apply junction-aware adjustments
+        let junction_adjusted = self.apply_junction_adjustments(base_direction, junction_context, p1, p2);
+        
+        junction_adjusted
+    }
+
+    /// Determine the flow phase with better context awareness
+    fn determine_flow_phase(&self, p1: Point2D, p2: Point2D) -> FlowPhase {
+        let box_center_x = self.box_dims.0 / 2.0;
+        let channel_start_x = p1.0;
+        let channel_end_x = p2.0;
+        let channel_center_x = (p1.0 + p2.0) / 2.0;
+        
+        // Consider the overall network topology
+        let distance_from_inlet = channel_center_x / self.box_dims.0;
+        let distance_from_outlet = (self.box_dims.0 - channel_center_x) / self.box_dims.0;
+        
+        // Enhanced phase detection based on multiple factors
+        if distance_from_inlet < 0.35 {
+            // First third: clearly diverging
+            FlowPhase::Diverging
+        } else if distance_from_outlet < 0.35 {
+            // Last third: clearly converging  
+            FlowPhase::Converging
+        } else {
+            // Middle zone: determine based on local flow direction and context
+            if (channel_end_x - channel_start_x).abs() < 1e-6 {
+                // Vertical segment in middle - could be either, use position
+                if channel_center_x < box_center_x { FlowPhase::Diverging } else { FlowPhase::Converging }
+            } else {
+                // Use flow direction to determine phase
+                let flowing_toward_center = (channel_end_x > channel_start_x && channel_center_x > box_center_x) ||
+                                          (channel_end_x < channel_start_x && channel_center_x < box_center_x);
+                if flowing_toward_center { FlowPhase::Converging } else { FlowPhase::Diverging }
+            }
+        }
+    }
+
+    /// Analyze local position context
+    fn analyze_local_position(&self, p1: Point2D, p2: Point2D) -> LocalPosition {
+        let box_center_y = self.box_dims.1 / 2.0;
+        let channel_center_y = (p1.1 + p2.1) / 2.0;
+        let relative_position = (channel_center_y - box_center_y) / (self.box_dims.1 / 2.0);
+        
+        // Determine position with tolerance for center detection
+        if relative_position.abs() < 0.15 {
+            LocalPosition::Center
+        } else if relative_position > 0.15 {
+            LocalPosition::Upper
+        } else {
+            LocalPosition::Lower
+        }
+    }
+
+    /// Analyze junction context for better curvature decisions
+    fn analyze_junction_context(&self, p1: Point2D, p2: Point2D) -> JunctionContext {
+        let junction_proximity_threshold = self.box_dims.0 * 0.1; // 10% of box width
+        
+        let distance_from_left = p1.0.min(p2.0);
+        let distance_from_right = self.box_dims.0 - p1.0.max(p2.0);
+        
+        let near_inlet_junction = distance_from_left < junction_proximity_threshold;
+        let near_outlet_junction = distance_from_right < junction_proximity_threshold;
+        
+        // Check if this channel has significant vertical displacement (junction connection)
+        let vertical_displacement = (p2.1 - p1.1).abs();
+        let horizontal_displacement = (p2.0 - p1.0).abs();
+        let is_junction_connector = vertical_displacement > horizontal_displacement * 0.3;
+        
+        JunctionContext {
+            near_inlet_junction,
+            near_outlet_junction,
+            is_junction_connector,
+            vertical_displacement,
+        }
+    }
+
+    /// Calculate flow-based direction using fluid dynamics principles
+    fn calculate_flow_based_direction(&self, p1: Point2D, p2: Point2D, flow_phase: FlowPhase, local_position: LocalPosition) -> f64 {
+        let dx = p2.0 - p1.0;
+        let flowing_right = dx > 0.0;
+        
+        match (flow_phase, local_position, flowing_right) {
+            // Diverging phase: channels spread outward from center
+            (FlowPhase::Diverging, LocalPosition::Upper, true) => 1.0,   // Upper: curve upward when flowing right
+            (FlowPhase::Diverging, LocalPosition::Upper, false) => -1.0, // Upper: curve downward when flowing left
+            (FlowPhase::Diverging, LocalPosition::Lower, true) => -1.0,  // Lower: curve downward when flowing right
+            (FlowPhase::Diverging, LocalPosition::Lower, false) => 1.0,  // Lower: curve upward when flowing left
+            (FlowPhase::Diverging, LocalPosition::Center, _) => 0.0,     // Center: minimal curvature
+            
+            // Converging phase: channels come together toward center
+            (FlowPhase::Converging, LocalPosition::Upper, true) => -1.0,  // Upper: curve downward when flowing right
+            (FlowPhase::Converging, LocalPosition::Upper, false) => 1.0,  // Upper: curve upward when flowing left
+            (FlowPhase::Converging, LocalPosition::Lower, true) => 1.0,   // Lower: curve upward when flowing right
+            (FlowPhase::Converging, LocalPosition::Lower, false) => -1.0, // Lower: curve downward when flowing left
+            (FlowPhase::Converging, LocalPosition::Center, _) => 0.0,     // Center: minimal curvature
+            
+            // Mixed phase: use reduced curvature
+            (FlowPhase::Mixed, LocalPosition::Upper, _) => 0.3,
+            (FlowPhase::Mixed, LocalPosition::Lower, _) => -0.3,
+            (FlowPhase::Mixed, LocalPosition::Center, _) => 0.0,
+        }
+    }
+
+    /// Apply junction-specific adjustments to the base direction
+    fn apply_junction_adjustments(&self, base_direction: f64, junction_context: JunctionContext, _p1: Point2D, _p2: Point2D) -> f64 {
+        let mut adjusted_direction = base_direction;
+        
+        // Reduce curvature near junctions to maintain smooth transitions
+        if junction_context.near_inlet_junction || junction_context.near_outlet_junction {
+            adjusted_direction *= 0.6; // Reduce curvature by 40% near junctions
+        }
+        
+        // For junction connectors (channels with significant vertical displacement)
+        if junction_context.is_junction_connector {
+            // Apply enhanced curvature for smoother junction transitions
+            let enhancement_factor = (junction_context.vertical_displacement / self.box_dims.1).min(1.0);
+            adjusted_direction *= 1.0 + enhancement_factor * 0.5;
+        }
+        
+        // Ensure reasonable bounds
+        adjusted_direction.max(-1.5).min(1.5)
+    }
+
+    /// Calculate the direction multiplier for arc curvature based on flow context
+    /// (Backward compatibility method)
+    fn calculate_arc_direction(&self, p1: Point2D, p2: Point2D, _is_diverging: bool, _is_above_center: bool) -> f64 {
+        // Use the enhanced version for all calculations now
+        self.calculate_enhanced_arc_direction(p1, p2)
+    }
+
+    /// Check if a channel is angled (not horizontal or vertical)
+    fn is_angled_channel(&self, p1: Point2D, p2: Point2D) -> bool {
+        let dx = (p2.0 - p1.0).abs();
+        let dy = (p2.1 - p1.1).abs();
+        let tolerance = 1e-6;
+        
+        // Channel is angled if it's neither purely horizontal nor purely vertical
+        dx > tolerance && dy > tolerance
+    }
+
+    /// Determine channel type using smart logic
+    fn determine_smart_channel_type(&self, p1: Point2D, p2: Point2D, serpentine_config: SerpentineConfig, arc_config: ArcConfig) -> ChannelType {
+        let (length, _) = self.box_dims;
+        let channel_mid_x = (p1.0 + p2.0) / 2.0;
+        
+        // Determine if this is in the first half, middle, or second half
+        let first_third = length / 3.0;
+        let second_third = 2.0 * length / 3.0;
+        
+        if channel_mid_x < first_third || channel_mid_x > second_third {
+            // First and last thirds: use arcs for angled channels, straight for others
+            if self.is_angled_channel(p1, p2) {
+                // Check if this might be a center channel in a trifurcation
+                if self.is_center_channel_in_trifurcation(p1, p2) {
+                    ChannelType::Straight
+                } else {
+                    self.create_arc_type(p1, p2, arc_config)
+                }
+            } else {
+                ChannelType::Straight
+            }
+        } else {
+            // Middle third: use serpentine channels
+            self.create_serpentine_type(p1, p2, serpentine_config, None)
+        }
+    }
+
+    /// Check if this channel is likely a center channel in a trifurcation
+    fn is_center_channel_in_trifurcation(&self, p1: Point2D, p2: Point2D) -> bool {
+        let y_mid = (p1.1 + p2.1) / 2.0;
+        let box_mid_y = self.box_dims.1 / 2.0;
+        let tolerance = self.box_dims.1 * 0.1; // 10% tolerance
+        
+        // If the channel is near the center vertically, it might be a center channel
+        (y_mid - box_mid_y).abs() < tolerance
+    }
 
     fn add_channel_with_neighbors(&mut self, p1: Point2D, p2: Point2D, neighbor_y_coords: &[f64]) {
         let channel_type = match self.channel_type_config {
@@ -179,7 +474,10 @@ impl GeometryGenerator {
             ChannelTypeConfig::AllSerpentine(config) => {
                 self.create_serpentine_type(p1, p2, config, Some(neighbor_y_coords))
             },
-            ChannelTypeConfig::MixedByPosition { middle_zone_fraction, serpentine_config } => {
+            ChannelTypeConfig::AllArcs(config) => {
+                self.create_arc_type(p1, p2, config)
+            },
+            ChannelTypeConfig::MixedByPosition { middle_zone_fraction, serpentine_config, arc_config } => {
                 let (length, _) = self.box_dims;
                 let mid_x = length / 2.0;
                 let channel_mid_x = (p1.0 + p2.0) / 2.0;
@@ -187,8 +485,19 @@ impl GeometryGenerator {
                 
                 if (channel_mid_x - mid_x).abs() < tolerance {
                     self.create_serpentine_type(p1, p2, serpentine_config, Some(neighbor_y_coords))
+                } else if self.is_angled_channel(p1, p2) {
+                    self.create_arc_type(p1, p2, arc_config)
                 } else {
                     ChannelType::Straight
+                }
+            }
+            ChannelTypeConfig::Smart { serpentine_config, arc_config } => {
+                let smart_type = self.determine_smart_channel_type(p1, p2, serpentine_config, arc_config);
+                match smart_type {
+                    ChannelType::Serpentine { .. } => {
+                        self.create_serpentine_type(p1, p2, serpentine_config, Some(neighbor_y_coords))
+                    }
+                    other => other,
                 }
             }
             ChannelTypeConfig::Custom(func) => func(p1, p2, self.box_dims),
