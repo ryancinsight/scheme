@@ -14,6 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let arc_config = ArcConfig {
         curvature_factor: 0.5,  // Strong curvature to show direction clearly
         smoothness: 25,         // Smooth curves for clear visualization
+        curvature_direction: 0.0, // Auto-determine for symmetric appearance
     };
 
     // Create a bifurcation followed by trifurcation to show directional flow

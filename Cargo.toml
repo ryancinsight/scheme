@@ -132,6 +132,10 @@ path = "examples/schematics/arcs/directional_flow_arcs.rs"
 name = "enhanced_directional_arcs"
 path = "examples/schematics/arcs/enhanced_directional_arcs.rs"
 
+[[example]]
+name = "curvature_direction_demo"
+path = "examples/schematics/arcs/curvature_direction_demo.rs"
+
 [dev-dependencies]
 criterion = "0.5.1"
 

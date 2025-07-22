@@ -21,6 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let arc_config = ArcConfig {
             curvature_factor: curvature,
             smoothness: 20,
+            curvature_direction: 0.0, // Auto-determine for symmetric appearance
         };
 
         let system = create_geometry(

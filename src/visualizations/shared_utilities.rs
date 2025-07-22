@@ -1,4 +1,5 @@
 use crate::geometry::ChannelSystem;
+use crate::error::{VisualizationError, VisualizationResult};
 use plotters::prelude::*;
 use plotters::coord::{Shift, types::RangedCoordf64};
 use plotters::element::PathElement;
@@ -7,16 +8,15 @@ pub fn visualize<'a, 'b>(
     system: &'a ChannelSystem,
     output_path: &'b str,
     title: &str,
-) -> Result<
-    (
-        DrawingArea<BitMapBackend<'b>, Shift>,
-        ChartContext<'a, BitMapBackend<'b>, Cartesian2d<RangedCoordf64, RangedCoordf64>>,
-        f64,
-    ),
-    Box<dyn std::error::Error>,
-> {
-    let root = BitMapBackend::new(output_path, (1024, 768)).into_drawing_area();
-    root.fill(&WHITE)?;
+) -> VisualizationResult<(
+    DrawingArea<BitMapBackend<'b>, Shift>,
+    ChartContext<'a, BitMapBackend<'b>, Cartesian2d<RangedCoordf64, RangedCoordf64>>,
+    f64,
+)> {
+    let root = BitMapBackend::new(output_path, (1024, 768))
+        .into_drawing_area();
+    root.fill(&WHITE)
+        .map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;
 
     let (length, width) = system.box_dims;
     let x_buffer = length * 0.05;
@@ -31,13 +31,14 @@ pub fn visualize<'a, 'b>(
         .build_cartesian_2d(
             -x_buffer..length + x_buffer,
             -y_buffer..width + y_buffer,
-        )?;
+        ).map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;
 
     chart
         .configure_mesh()
         .x_desc("X (mm)")
         .y_desc("Y (mm)")
-        .draw()?;
+        .draw()
+        .map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;
 
     let plotting_area = chart.plotting_area();
     let y_range = chart.y_range();
@@ -51,7 +52,7 @@ pub fn visualize<'a, 'b>(
             .box_outline
             .iter()
             .map(|&(p1, p2)| PathElement::new(vec![p1, p2], BLACK.stroke_width(2))),
-    )?;
+    ).map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;
 
     Ok((root, chart, y_scale_factor))
 } 

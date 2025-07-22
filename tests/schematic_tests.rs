@@ -272,6 +272,7 @@ fn test_arc_channels() {
     let arc_config = ArcConfig {
         curvature_factor: 0.5,
         smoothness: 15,
+        curvature_direction: 0.0, // Auto-determine
     };
     
     // Create system with all arc channels
@@ -335,4 +336,151 @@ fn test_smart_channel_types() {
     
     // Smart selection should produce at least straight channels
     assert!(channel_types.contains("straight"), "Smart selection should include straight channels");
+}
+
+/// Test that the geometry generation produces symmetric channel layouts
+#[test]
+fn test_symmetric_channel_layout() {
+    use scheme::geometry::{create_geometry, SplitType};
+    use scheme::config::{GeometryConfig, ChannelTypeConfig};
+
+    let config = GeometryConfig::default();
+    let channel_config = ChannelTypeConfig::AllStraight;
+    let splits = vec![SplitType::Bifurcation, SplitType::Trifurcation];
+
+    let system = create_geometry((20.0, 10.0), &splits, &config, &channel_config);
+
+    // Check that the system has the expected structure
+    assert!(!system.channels.is_empty());
+    assert!(!system.nodes.is_empty());
+
+    // For a symmetric system, we should have nodes that mirror across the vertical centerline
+    let center_x = 10.0; // Half of the 20.0 width
+    let mut left_nodes = Vec::new();
+    let mut right_nodes = Vec::new();
+    let mut center_nodes = Vec::new();
+
+    for node in &system.nodes {
+        if node.point.0 < center_x - 0.1 {
+            left_nodes.push(node);
+        } else if node.point.0 > center_x + 0.1 {
+            right_nodes.push(node);
+        } else {
+            center_nodes.push(node);
+        }
+    }
+
+    // We should have nodes on both sides and potentially some at the center
+    assert!(!left_nodes.is_empty(), "Should have nodes on the left side");
+    assert!(!right_nodes.is_empty(), "Should have nodes on the right side");
+
+    // Check that for each left node, there's a corresponding right node at the mirrored position
+    for left_node in &left_nodes {
+        let expected_right_x = 2.0 * center_x - left_node.point.0;
+        let expected_right_y = left_node.point.1;
+
+        let found_mirror = right_nodes.iter().any(|right_node| {
+            (right_node.point.0 - expected_right_x).abs() < 0.1 &&
+            (right_node.point.1 - expected_right_y).abs() < 0.1
+        });
+
+        assert!(found_mirror,
+            "No mirror node found for left node at ({}, {}) - expected right node at ({}, {})",
+            left_node.point.0, left_node.point.1, expected_right_x, expected_right_y
+        );
+    }
+
+    println!("Symmetric layout test passed: {} left nodes, {} right nodes, {} center nodes",
+             left_nodes.len(), right_nodes.len(), center_nodes.len());
+}
+
+/// Test that arc channels have symmetric curvature across the vertical centerline
+#[test]
+fn test_arc_curvature_symmetry() {
+    use scheme::geometry::{create_geometry, SplitType, ChannelType};
+    use scheme::config::{GeometryConfig, ChannelTypeConfig, ArcConfig};
+
+    let config = GeometryConfig::default();
+    let arc_config = ArcConfig {
+        curvature_factor: 0.5,
+        smoothness: 10,
+        curvature_direction: 0.0, // Auto-determine
+    };
+    let channel_config = ChannelTypeConfig::AllArcs(arc_config);
+    let splits = vec![SplitType::Bifurcation];
+
+    let system = create_geometry((20.0, 10.0), &splits, &config, &channel_config);
+
+    // Find arc channels and group them by left/right side
+    let center_x = 10.0;
+    let mut left_arcs = Vec::new();
+    let mut right_arcs = Vec::new();
+
+    for channel in &system.channels {
+        if let ChannelType::Arc { path } = &channel.channel_type {
+            let from_node = &system.nodes[channel.from_node];
+            let to_node = &system.nodes[channel.to_node];
+            let channel_center_x = (from_node.point.0 + to_node.point.0) / 2.0;
+
+            if channel_center_x < center_x {
+                left_arcs.push((channel, path, from_node, to_node));
+            } else if channel_center_x > center_x {
+                right_arcs.push((channel, path, from_node, to_node));
+            }
+        }
+    }
+
+    // We should have arc channels on both sides
+    assert!(!left_arcs.is_empty(), "Should have arc channels on the left side");
+    assert!(!right_arcs.is_empty(), "Should have arc channels on the right side");
+
+    // For each left arc, find its corresponding right arc and check curvature symmetry
+    for (_left_channel, left_path, left_from, left_to) in &left_arcs {
+        let left_y_center = (left_from.point.1 + left_to.point.1) / 2.0;
+
+        // Find corresponding right arc at similar y-coordinate
+        let corresponding_right = right_arcs.iter().find(|(_, _, right_from, right_to)| {
+            let right_y_center = (right_from.point.1 + right_to.point.1) / 2.0;
+            (left_y_center - right_y_center).abs() < 0.5
+        });
+
+        if let Some((_right_channel, right_path, _right_from, _right_to)) = corresponding_right {
+            // Check that both arcs have similar curvature characteristics
+            assert!(left_path.len() > 2, "Left arc should have multiple path points");
+            assert!(right_path.len() > 2, "Right arc should have multiple path points");
+
+            // Calculate curvature direction for both arcs
+            let left_mid_idx = left_path.len() / 2;
+            let right_mid_idx = right_path.len() / 2;
+
+            let left_start = left_path[0];
+            let left_mid = left_path[left_mid_idx];
+            let left_end = left_path[left_path.len() - 1];
+
+            let right_start = right_path[0];
+            let right_mid = right_path[right_mid_idx];
+            let right_end = right_path[right_path.len() - 1];
+
+            // Calculate the curvature direction (positive = curves up, negative = curves down)
+            let left_baseline_y = (left_start.1 + left_end.1) / 2.0;
+            let left_curvature_direction = left_mid.1 - left_baseline_y;
+
+            let right_baseline_y = (right_start.1 + right_end.1) / 2.0;
+            let right_curvature_direction = right_mid.1 - right_baseline_y;
+
+            // For visual symmetry, arcs at corresponding positions should curve in the same direction
+            // (both concave toward center or both convex away from center)
+            let curvature_directions_match =
+                (left_curvature_direction > 0.0 && right_curvature_direction > 0.0) ||
+                (left_curvature_direction < 0.0 && right_curvature_direction < 0.0);
+
+            assert!(curvature_directions_match,
+                "Arc curvature directions should match for symmetry: left={:.3}, right={:.3} at y={:.1}",
+                left_curvature_direction, right_curvature_direction, left_y_center
+            );
+        }
+    }
+
+    println!("Arc curvature symmetry test passed: {} left arcs, {} right arcs",
+             left_arcs.len(), right_arcs.len());
 }

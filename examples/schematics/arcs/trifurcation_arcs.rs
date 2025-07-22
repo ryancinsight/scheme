@@ -14,6 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let arc_config = ArcConfig {
         curvature_factor: 0.3,  // Subtle curvature
         smoothness: 30,         // Very smooth curves
+        curvature_direction: 0.0, // Auto-determine for symmetric appearance
     };
 
     let system = create_geometry(

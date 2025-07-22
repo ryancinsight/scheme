@@ -11,6 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let arc_config = ArcConfig {
         curvature_factor: 0.8, // Higher curvature to show enhanced flow patterns
         smoothness: 25,        // Smooth curves for better visualization
+        curvature_direction: 0.0, // Auto-determine for symmetric appearance
     };
 
     let config = GeometryConfig {
