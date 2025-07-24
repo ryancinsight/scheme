@@ -644,12 +644,15 @@ fn generate_simplified_serpentine_path(
     
     for i in 0..n_points {
         let t = i as f64 / (n_points - 1) as f64;
-        
+
         let base_x = p1.0 + t * dx;
         let base_y = p1.1 + t * dy;
-        
+
+        // Apply improved envelope logic for optimization path as well
+        let envelope = calculate_improved_envelope_for_optimization(t, channel_length, dx, dy, serpentine_config);
+
         let wave_phase = 2.0 * std::f64::consts::PI * periods * t;
-        let wave_amplitude = amplitude * wave_phase.sin();
+        let wave_amplitude = amplitude * envelope * wave_phase.sin();
         
         let perp_x = -dy / channel_length;
         let perp_y = dx / channel_length;
@@ -667,4 +670,59 @@ fn generate_simplified_serpentine_path(
     }
     
     path
+}
+
+/// Calculate improved Gaussian envelope for optimization (helper function)
+///
+/// This mirrors the logic from SerpentineChannelStrategy but is available
+/// for use in the optimization module.
+fn calculate_improved_envelope_for_optimization(
+    t: f64,
+    channel_length: f64,
+    dx: f64,
+    dy: f64,
+    serpentine_config: &SerpentineConfig
+) -> f64 {
+    // Calculate the actual distance between nodes
+    let node_distance = (dx * dx + dy * dy).sqrt();
+
+    // Determine if this is primarily a horizontal channel (middle section logic)
+    let is_horizontal = dx.abs() > dy.abs();
+    let horizontal_ratio = dx.abs() / node_distance;
+
+    // For horizontal channels (middle sections), we want less aggressive tapering
+    let middle_section_factor = if is_horizontal && horizontal_ratio > 0.8 {
+        0.3 + 0.7 * horizontal_ratio
+    } else {
+        1.0
+    };
+
+    // Distance-based normalization
+    let distance_normalization = (node_distance / 10.0).min(1.0).max(0.1);
+
+    // Calculate effective sigma
+    let base_sigma = channel_length / serpentine_config.gaussian_width_factor;
+    let effective_sigma = base_sigma * distance_normalization * middle_section_factor;
+
+    // Center the envelope
+    let center = 0.5;
+
+    // Calculate Gaussian envelope
+    let gaussian = (-0.5 * ((t - center) / (effective_sigma / channel_length)).powi(2)).exp();
+
+    // For middle sections, add a plateau in the center
+    if is_horizontal && horizontal_ratio > 0.8 {
+        let plateau_width = 0.4;
+        let plateau_start = 0.5 - plateau_width / 2.0;
+        let plateau_end = 0.5 + plateau_width / 2.0;
+
+        if t >= plateau_start && t <= plateau_end {
+            let plateau_factor = 1.0 - ((t - 0.5).abs() / (plateau_width / 2.0));
+            gaussian.max(0.8 + 0.2 * plateau_factor)
+        } else {
+            gaussian
+        }
+    } else {
+        gaussian
+    }
 }

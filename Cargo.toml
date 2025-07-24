@@ -144,6 +144,10 @@ path = "examples/schematics/arcs/curvature_direction_demo.rs"
 name = "svg_demo"
 path = "examples/svg_demo.rs"
 
+[[example]]
+name = "improved_gaussian_demo"
+path = "examples/schematics/serpentine/improved_gaussian_demo.rs"
+
 [dev-dependencies]
 criterion = "0.5.1"
 

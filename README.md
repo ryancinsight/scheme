@@ -21,7 +21,11 @@ Scheme supports different channel geometries as part of its DAG architecture wit
 ### Serpentine Channel Features
 
 - **Precise Endpoint Alignment**: Serpentine channels start and end exactly at node positions
-- **Gaussian Tone Burst Envelope**: Uses a Gaussian-shaped amplitude envelope for natural transitions
+- **Improved Gaussian Envelope**: Advanced envelope system with distance-based normalization and middle section detection
+- **Distance-Based Normalization**: Shorter channels get more aggressive tapering to prevent node intersection
+- **Middle Section Detection**: Horizontal channels (no directional change) maintain more amplitude in the center
+- **Plateau Effect**: Middle sections have a flat region for full amplitude where appropriate
+- **Directional Change Handling**: Nodes with direction changes get full Gaussian tapering for smooth transitions
 - **Linear Near Nodes**: Channels remain linear near connection points, becoming serpentine in the middle
 - **Smooth Channel Separation**: Allows channels to separate before becoming serpentine
 - **Dynamic Wavelength Adaptation**: Wavelength automatically adapts to channel length for optimal appearance
@@ -204,6 +208,7 @@ The library includes comprehensive examples using the modern API:
 - `channel_type_demo` - Comprehensive demonstration of all channel type configurations
 - `dynamic_serpentine_demo` - Advanced demonstration of precise endpoint alignment and custom configurations
 - `gaussian_tone_burst_demo` - Demonstrates Gaussian envelope effects with different width factors
+- `improved_gaussian_demo` - Shows the new distance-based normalization and middle section detection
 
 ### Optimization Examples
 - `basic_optimization` - Simple demonstration of serpentine length optimization

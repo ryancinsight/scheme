@@ -158,19 +158,17 @@ impl SerpentineChannelStrategy {
         let phase_direction = self.calculate_wave_phase_direction(p1, p2, box_dims);
 
         // Gaussian envelope parameters
-        let sigma = channel_length / self.config.gaussian_width_factor;
-        let center = channel_length / 2.0;
+        // Note: sigma and center are now calculated in the improved envelope function
 
         for i in 0..n_points {
             let t = i as f64 / (n_points - 1) as f64;
-            let s = t * channel_length;
 
             // Base position along the line
             let base_x = p1.0 + t * dx;
             let base_y = p1.1 + t * dy;
 
-            // Gaussian envelope for smooth transitions
-            let envelope = (-0.5 * ((s - center) / sigma).powi(2)).exp();
+            // Improved Gaussian envelope with distance-based normalization
+            let envelope = self.calculate_improved_envelope(t, channel_length, dx, dy);
 
             // Serpentine wave with proper bilateral symmetry
             let wave_phase = 2.0 * std::f64::consts::PI * periods * t;
@@ -263,6 +261,61 @@ impl SerpentineChannelStrategy {
             total_branches,
             neighbor_info,
         )
+    }
+
+    /// Calculate improved Gaussian envelope with distance-based normalization
+    ///
+    /// This function creates a more sophisticated envelope that:
+    /// 1. Normalizes based on the distance between start and end nodes
+    /// 2. Provides special handling for the middle section where there's no directional change
+    /// 3. Reduces amplitude near nodes to prevent intersection while maintaining full amplitude in the middle
+    fn calculate_improved_envelope(&self, t: f64, channel_length: f64, dx: f64, dy: f64) -> f64 {
+        // Calculate the actual distance between nodes (not just channel length)
+        let node_distance = (dx * dx + dy * dy).sqrt();
+
+        // Determine if this is primarily a horizontal channel (middle section logic)
+        let is_horizontal = dx.abs() > dy.abs();
+        let horizontal_ratio = dx.abs() / node_distance;
+
+        // For horizontal channels (middle sections), we want less aggressive tapering
+        // since there's no directional change at the nodes
+        let middle_section_factor = if is_horizontal && horizontal_ratio > 0.8 {
+            // This is a middle section - reduce the Gaussian effect
+            0.3 + 0.7 * horizontal_ratio // Scale from 0.3 to 1.0 based on how horizontal it is
+        } else {
+            // This is a directional change section - use full Gaussian effect
+            1.0
+        };
+
+        // Distance-based normalization: shorter channels need more aggressive tapering
+        let distance_normalization = (node_distance / 10.0).min(1.0).max(0.1);
+
+        // Calculate effective sigma based on distance and section type
+        let base_sigma = channel_length / self.config.gaussian_width_factor;
+        let effective_sigma = base_sigma * distance_normalization * middle_section_factor;
+
+        // Center the envelope
+        let center = 0.5; // Center in parameter space (t = 0.5)
+
+        // Calculate Gaussian envelope
+        let gaussian = (-0.5 * ((t - center) / (effective_sigma / channel_length)).powi(2)).exp();
+
+        // For middle sections, add a plateau in the center to maintain full amplitude
+        if is_horizontal && horizontal_ratio > 0.8 {
+            let plateau_width = 0.4; // 40% of the channel has full amplitude
+            let plateau_start = 0.5 - plateau_width / 2.0;
+            let plateau_end = 0.5 + plateau_width / 2.0;
+
+            if t >= plateau_start && t <= plateau_end {
+                // In the plateau region, blend between Gaussian and full amplitude
+                let plateau_factor = 1.0 - ((t - 0.5).abs() / (plateau_width / 2.0));
+                gaussian.max(0.8 + 0.2 * plateau_factor)
+            } else {
+                gaussian
+            }
+        } else {
+            gaussian
+        }
     }
 
     /// Calculate appropriate amplitude for serpentine channels
