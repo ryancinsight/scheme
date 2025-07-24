@@ -21,8 +21,9 @@ fn main() {
         wave_phase_direction: 0.0, // Auto-determine for perfect symmetry
         optimization_enabled: false,
         target_fill_ratio: 0.9,
+        optimization_profile: scheme::config::OptimizationProfile::Balanced,
     };
-    
+
     // 2. Force all waves to start with inward phase
     let inward_config = SerpentineConfig {
         fill_factor: 0.8,
@@ -32,8 +33,9 @@ fn main() {
         wave_phase_direction: -1.0, // Force inward phase
         optimization_enabled: false,
         target_fill_ratio: 0.9,
+        optimization_profile: scheme::config::OptimizationProfile::Balanced,
     };
-    
+
     // 3. Force all waves to start with outward phase
     let outward_config = SerpentineConfig {
         fill_factor: 0.8,
@@ -43,6 +45,7 @@ fn main() {
         wave_phase_direction: 1.0, // Force outward phase
         optimization_enabled: false,
         target_fill_ratio: 0.9,
+        optimization_profile: scheme::config::OptimizationProfile::Balanced,
     };
 
     // Create systems with bifurcations to show symmetry effects

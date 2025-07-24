@@ -261,7 +261,7 @@ fn test_backward_compatibility() {
     let lines = system.get_lines();
     assert!(lines.len() > 0);
     
-    let path_segments = system.get_path_segments();
+    let _path_segments = system.get_path_segments();
     // Path segments might be empty for straight channels, which is fine
 }
 

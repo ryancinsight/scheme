@@ -6,7 +6,7 @@
 
 use crate::geometry::types::Point2D;
 use crate::config::{GeometryConfig, SerpentineConfig, OptimizationProfile};
-use std::collections::HashMap;
+// use std::collections::HashMap; // For future parameter caching
 
 /// Calculate the total path length of a serpentine channel
 ///
@@ -91,37 +91,62 @@ pub fn calculate_min_neighbor_distance(
 }
 
 /// Optimization parameters for serpentine channel generation
+///
+/// These parameters control the shape and density of serpentine channels
+/// during the optimization process.
 #[derive(Debug, Clone)]
 pub struct OptimizationParams {
+    /// Multiplier for channel width to determine wavelength (1.0 to 10.0)
     pub wavelength_factor: f64,
+    /// Controls how many waves appear relative to channel length (0.5 to 5.0)
     pub wave_density_factor: f64,
+    /// Fraction of available vertical space to fill (0.1 to 0.95)
     pub fill_factor: f64,
 }
 
 /// Result of serpentine optimization
+///
+/// Contains the optimized parameters and performance metrics from
+/// the optimization process.
 #[derive(Debug, Clone)]
 pub struct OptimizationResult {
+    /// The optimized parameters that produced the best result
     pub params: OptimizationParams,
+    /// Total length of the optimized serpentine path
     pub path_length: f64,
+    /// Minimum distance to any wall boundary
     pub min_wall_distance: f64,
+    /// Minimum distance to any neighboring channel
     pub min_neighbor_distance: f64,
+    /// Whether the optimization result meets all constraints
     pub is_valid: bool,
+    /// Number of optimization iterations performed
     pub iterations: usize,
+    /// Total time spent on optimization
     pub optimization_time: std::time::Duration,
 }
 
 /// Optimization statistics for monitoring performance
+///
+/// Provides detailed metrics about the optimization process for
+/// performance analysis and debugging.
 #[derive(Debug, Clone)]
 pub struct OptimizationStats {
+    /// Total number of parameter evaluations performed
     pub total_evaluations: usize,
+    /// Number of cache hits during optimization
     pub cache_hits: usize,
+    /// Number of cache misses during optimization
     pub cache_misses: usize,
+    /// Best objective function score achieved
     pub best_score: f64,
+    /// Number of iterations until convergence
     pub convergence_iterations: usize,
 }
 
 /// Parameter cache for optimization
-type ParameterCache = HashMap<String, (f64, f64, f64)>; // key -> (length, wall_dist, neighbor_dist)
+// Future enhancement: Parameter caching for optimization
+// type ParameterCache = HashMap<String, (f64, f64, f64)>; // key -> (length, wall_dist, neighbor_dist)
 
 /// Optimize serpentine parameters to maximize channel length using advanced algorithms
 ///

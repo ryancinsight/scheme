@@ -63,6 +63,20 @@ pub struct SerpentineChannelStrategy {
 }
 
 impl SerpentineChannelStrategy {
+    /// Create a new serpentine channel strategy with the given configuration
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Configuration parameters for serpentine channel generation
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use scheme::geometry::strategies::SerpentineChannelStrategy;
+    /// use scheme::config::SerpentineConfig;
+    ///
+    /// let strategy = SerpentineChannelStrategy::new(SerpentineConfig::default());
+    /// ```
     pub fn new(config: SerpentineConfig) -> Self {
         Self { config }
     }
@@ -366,6 +380,20 @@ pub struct ArcChannelStrategy {
 }
 
 impl ArcChannelStrategy {
+    /// Create a new arc channel strategy with the given configuration
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Configuration parameters for arc channel generation
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use scheme::geometry::strategies::ArcChannelStrategy;
+    /// use scheme::config::ArcConfig;
+    ///
+    /// let strategy = ArcChannelStrategy::new(ArcConfig::default());
+    /// ```
     pub fn new(config: ArcConfig) -> Self {
         Self { config }
     }
@@ -623,6 +651,23 @@ pub struct CustomChannelStrategy {
 }
 
 impl CustomChannelStrategy {
+    /// Create a new direct channel strategy with the given channel type
+    ///
+    /// This strategy directly uses the provided channel type without any
+    /// configuration-based selection logic.
+    ///
+    /// # Arguments
+    ///
+    /// * `channel_type` - The specific channel type to use for all channels
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use scheme::geometry::strategies::CustomChannelStrategy;
+    /// use scheme::geometry::ChannelType;
+    ///
+    /// let strategy = CustomChannelStrategy::new(ChannelType::Straight);
+    /// ```
     pub fn new(channel_type: ChannelType) -> Self {
         Self { channel_type }
     }

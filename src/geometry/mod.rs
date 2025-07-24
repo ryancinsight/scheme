@@ -30,4 +30,5 @@ pub use self::{
     types::{Channel, ChannelSystem, ChannelType, Node, Point2D, SplitType},
 };
 
+/// Alias for Point2D for backward compatibility and convenience
 pub type Point = Point2D;

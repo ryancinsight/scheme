@@ -19,6 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         wave_phase_direction: 0.0, // Auto-symmetric
         optimization_enabled: false,
         target_fill_ratio: 0.9,
+        optimization_profile: scheme::config::OptimizationProfile::Balanced,
     };
 
     let arc_config = ArcConfig {

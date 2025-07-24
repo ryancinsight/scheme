@@ -187,6 +187,9 @@ fn bench_serpentine_complexity(c: &mut Criterion) {
             gaussian_width_factor: 8.0,
             wave_density_factor: 1.0,
             wave_phase_direction: 0.0,
+            optimization_enabled: false,
+            optimization_profile: scheme::config::OptimizationProfile::Balanced,
+            target_fill_ratio: 0.9,
         }),
         ("medium_density", SerpentineConfig {
             fill_factor: 0.7,
@@ -194,6 +197,9 @@ fn bench_serpentine_complexity(c: &mut Criterion) {
             gaussian_width_factor: 6.0,
             wave_density_factor: 1.5,
             wave_phase_direction: 0.0,
+            optimization_enabled: false,
+            optimization_profile: scheme::config::OptimizationProfile::Balanced,
+            target_fill_ratio: 0.9,
         }),
         ("high_density", SerpentineConfig {
             fill_factor: 0.9,
@@ -201,6 +207,9 @@ fn bench_serpentine_complexity(c: &mut Criterion) {
             gaussian_width_factor: 4.0,
             wave_density_factor: 2.5,
             wave_phase_direction: 0.0,
+            optimization_enabled: false,
+            optimization_profile: scheme::config::OptimizationProfile::Balanced,
+            target_fill_ratio: 0.9,
         }),
     ];
     
@@ -231,6 +240,7 @@ fn bench_serpentine_complexity(c: &mut Criterion) {
 }
 
 /// Cleanup function to remove benchmark output files
+#[allow(dead_code)]
 fn cleanup_bench_outputs() {
     if Path::new("target/bench_outputs").exists() {
         fs::remove_dir_all("target/bench_outputs").ok();

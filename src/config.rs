@@ -97,10 +97,28 @@ pub mod constants {
 }
 
 /// Configuration for basic geometry parameters
+///
+/// This struct defines the fundamental geometric constraints for microfluidic
+/// channel generation, including wall clearances and channel dimensions.
+///
+/// # Examples
+///
+/// ```rust
+/// use scheme::config::GeometryConfig;
+///
+/// // Create with default values
+/// let config = GeometryConfig::default();
+///
+/// // Create with custom values
+/// let custom_config = GeometryConfig::new(0.5, 1.0, 0.5).unwrap();
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct GeometryConfig {
+    /// Minimum distance between channels and walls (mm)
     pub wall_clearance: f64,
+    /// Width of channels (mm)
     pub channel_width: f64,
+    /// Height of channels (mm) - used for 3D-aware calculations
     pub channel_height: f64,
 }
 
@@ -420,20 +438,53 @@ impl Default for ArcConfig {
     }
 }
 
+/// Configuration for selecting channel types in microfluidic schematics
+///
+/// This enum provides different strategies for determining what type of channel
+/// (straight, serpentine, or arc) to use for each connection in the system.
+///
+/// # Examples
+///
+/// ```rust
+/// use scheme::config::{ChannelTypeConfig, SerpentineConfig, ArcConfig};
+///
+/// // All channels will be straight lines
+/// let straight_config = ChannelTypeConfig::AllStraight;
+///
+/// // All channels will be serpentine with default parameters
+/// let serpentine_config = ChannelTypeConfig::AllSerpentine(SerpentineConfig::default());
+///
+/// // Smart selection based on channel characteristics
+/// let smart_config = ChannelTypeConfig::Smart {
+///     serpentine_config: SerpentineConfig::default(),
+///     arc_config: ArcConfig::default(),
+/// };
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub enum ChannelTypeConfig {
+    /// All channels will be straight lines
     AllStraight,
+    /// All channels will be serpentine with the specified configuration
     AllSerpentine(SerpentineConfig),
+    /// All channels will be arcs with the specified configuration
     AllArcs(ArcConfig),
-    MixedByPosition { 
-        middle_zone_fraction: f64, 
+    /// Channels are selected based on their position in the layout
+    MixedByPosition {
+        /// Fraction of the box width that defines the middle zone for serpentine channels (0.0 to 1.0)
+        middle_zone_fraction: f64,
+        /// Configuration for serpentine channels in the middle zone
         serpentine_config: SerpentineConfig,
+        /// Configuration for arc channels outside the middle zone
         arc_config: ArcConfig,
     },
-    Smart { 
+    /// Intelligent channel type selection based on channel characteristics
+    Smart {
+        /// Configuration for serpentine channels when selected by smart algorithm
         serpentine_config: SerpentineConfig,
+        /// Configuration for arc channels when selected by smart algorithm
         arc_config: ArcConfig,
     },
+    /// Custom function for determining channel type based on endpoints and box dimensions
     Custom(fn(from: (f64, f64), to: (f64, f64), box_dims: (f64, f64)) -> ChannelType),
 }
 

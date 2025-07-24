@@ -39,7 +39,12 @@ pub enum SchemeError {
 pub enum GeometryError {
     /// Invalid box dimensions provided
     #[error("Invalid box dimensions: width={width}, height={height}. Both dimensions must be positive.")]
-    InvalidBoxDimensions { width: f64, height: f64 },
+    InvalidBoxDimensions {
+        /// Width of the box
+        width: f64,
+        /// Height of the box
+        height: f64
+    },
 
     /// Invalid point coordinates
     #[error("Invalid point coordinates: ({x}, {y}). Coordinates must be finite numbers.")]
@@ -150,6 +155,7 @@ pub enum StrategyError {
 #[derive(Error, Debug)]
 pub enum SimulationError {
     #[error("The simulation's linear system could not be solved. This may be due to disconnected channels or other geometry issues.")]
+    /// Linear system could not be solved due to geometry issues
     LinearSystemError,
 }
 

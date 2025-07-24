@@ -4,6 +4,40 @@ use plotters::prelude::*;
 use plotters::coord::{Shift, types::RangedCoordf64};
 use plotters::element::PathElement;
 
+/// Legacy visualization function for backward compatibility
+///
+/// This function provides the original visualization interface using plotters directly.
+/// For new code, prefer using the abstracted visualization system through the
+/// `SchematicRenderer` trait.
+///
+/// # Arguments
+///
+/// * `system` - The channel system to visualize
+/// * `output_path` - Path where the output image will be saved
+/// * `title` - Title for the visualization
+///
+/// # Returns
+///
+/// Returns a tuple containing the drawing area, chart context, and scale factor
+/// for further customization of the visualization.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use scheme::geometry::generator::create_geometry;
+/// use scheme::geometry::SplitType;
+/// use scheme::config::{GeometryConfig, ChannelTypeConfig};
+/// use scheme::visualizations::shared_utilities::visualize;
+///
+/// let system = create_geometry(
+///     (200.0, 100.0),
+///     &[SplitType::Bifurcation],
+///     &GeometryConfig::default(),
+///     &ChannelTypeConfig::AllStraight,
+/// );
+///
+/// let result = visualize(&system, "output.png", "My Schematic");
+/// ```
 pub fn visualize<'a, 'b>(
     system: &'a ChannelSystem,
     output_path: &'b str,

@@ -3,7 +3,7 @@ use scheme::{
     geometry::{
         generator::create_geometry,
         metadata::{FlowMetadata, ThermalMetadata, ManufacturingMetadata, OptimizationMetadata},
-        builders::{ChannelExt, NodeExt},
+        builders::ChannelExt,
         SplitType,
     },
     visualizations::schematic::plot_geometry,

@@ -17,7 +17,9 @@
 //! - `schematic`: High-level schematic rendering functions
 //! - `shared_utilities`: Common utilities for visualization operations
 
+/// High-level schematic rendering functions
 pub mod schematic;
+/// Shared utilities for visualization operations
 pub mod shared_utilities;
 pub mod traits;
 pub mod plotters_backend;

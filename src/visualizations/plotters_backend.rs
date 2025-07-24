@@ -185,6 +185,12 @@ pub struct PlottersDrawer<'a, DB: DrawingBackend> {
 }
 
 impl<'a, DB: DrawingBackend> PlottersDrawer<'a, DB> {
+    /// Create a new PlottersDrawer with the given drawing area and optional chart context
+    ///
+    /// # Arguments
+    ///
+    /// * `drawing_area` - The plotters drawing area to draw on
+    /// * `chart` - Optional chart context for coordinate transformations
     pub fn new(
         drawing_area: &'a DrawingArea<DB, Shift>,
         chart: Option<&'a mut ChartContext<'a, DB, Cartesian2d<RangedCoordf64, RangedCoordf64>>>,
@@ -252,6 +258,11 @@ pub struct PlottersVisualizationEngine<'a, DB: DrawingBackend> {
 }
 
 impl<'a, DB: DrawingBackend> PlottersVisualizationEngine<'a, DB> {
+    /// Create a new PlottersVisualizationEngine with the given drawer
+    ///
+    /// # Arguments
+    ///
+    /// * `drawer` - The PlottersDrawer to use for rendering operations
     pub fn new(drawer: PlottersDrawer<'a, DB>) -> Self {
         Self { drawer }
     }

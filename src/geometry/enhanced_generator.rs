@@ -6,7 +6,7 @@
 
 use super::types::{Channel, ChannelSystem, ChannelType, Node, Point2D, SplitType};
 use super::strategies::ChannelTypeFactory;
-use super::metadata::{MetadataContainer, OptimizationMetadata, PerformanceMetadata};
+use super::metadata::{OptimizationMetadata, PerformanceMetadata};
 use super::builders::{ChannelBuilder, NodeBuilder};
 use crate::config::{ChannelTypeConfig, GeometryConfig};
 use std::collections::HashMap;
@@ -246,7 +246,7 @@ pub fn create_geometry_with_metadata(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::metadata::{FlowMetadata, PerformanceMetadata};
+    use crate::geometry::metadata::PerformanceMetadata;
     use crate::geometry::builders::ChannelExt;
 
     #[test]
@@ -254,7 +254,6 @@ mod tests {
         let metadata_config = MetadataConfig {
             track_performance: true,
             track_optimization: false,
-            custom_generators: Vec::new(),
         };
         
         let system = create_geometry_with_metadata(
@@ -275,6 +274,7 @@ mod tests {
         
         // Check that nodes have performance metadata
         for node in &system.nodes {
+            use crate::geometry::builders::NodeExt;
             assert!(node.has_metadata::<PerformanceMetadata>());
         }
     }

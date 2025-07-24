@@ -3,7 +3,7 @@ use scheme::{
     geometry::{
         generator::create_geometry,
         metadata::{Metadata, MetadataContainer},
-        builders::{ChannelExt, NodeExt},
+        builders::ChannelExt,
         SplitType,
     },
     impl_metadata,

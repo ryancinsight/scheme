@@ -137,12 +137,22 @@ impl Default for RenderConfig {
     }
 }
 
-/// Supported output formats
+/// Supported output formats for schematic rendering
+///
+/// Different formats have different characteristics:
+/// - PNG: Raster format, good for web display and documentation
+/// - SVG: Vector format, scalable and editable
+/// - PDF: Vector format, good for publications and printing
+/// - JPEG: Compressed raster format, smaller file sizes
 #[derive(Debug, Clone, PartialEq)]
 pub enum OutputFormat {
+    /// Portable Network Graphics - raster format with lossless compression
     PNG,
+    /// Scalable Vector Graphics - vector format for web and editing
     SVG,
+    /// Portable Document Format - vector format for publications
     PDF,
+    /// Joint Photographic Experts Group - compressed raster format
     JPEG,
 }
 
@@ -158,20 +168,44 @@ impl OutputFormat {
     }
 }
 
-/// Color representation
+/// Color representation using RGBA values
+///
+/// Each component is represented as a value from 0 to 255.
+///
+/// # Examples
+///
+/// ```rust
+/// use scheme::visualizations::Color;
+///
+/// // Create a red color
+/// let red = Color::rgba(255, 0, 0, 255);
+///
+/// // Use predefined colors
+/// let white = Color::WHITE;
+/// let black = Color::BLACK;
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Color {
+    /// Red component (0-255)
     pub r: u8,
+    /// Green component (0-255)
     pub g: u8,
+    /// Blue component (0-255)
     pub b: u8,
+    /// Alpha (transparency) component (0-255, where 255 is opaque)
     pub a: u8,
 }
 
 impl Color {
+    /// Pure white color (255, 255, 255, 255)
     pub const WHITE: Color = Color { r: 255, g: 255, b: 255, a: 255 };
+    /// Pure black color (0, 0, 0, 255)
     pub const BLACK: Color = Color { r: 0, g: 0, b: 0, a: 255 };
+    /// Pure red color (255, 0, 0, 255)
     pub const RED: Color = Color { r: 255, g: 0, b: 0, a: 255 };
+    /// Pure green color (0, 255, 0, 255)
     pub const GREEN: Color = Color { r: 0, g: 255, b: 0, a: 255 };
+    /// Pure blue color (0, 0, 255, 255)
     pub const BLUE: Color = Color { r: 0, g: 0, b: 255, a: 255 };
     
     /// Create a new color with RGB values
@@ -185,11 +219,28 @@ impl Color {
     }
 }
 
-/// Style for drawing lines
+/// Style configuration for drawing lines
+///
+/// Defines the visual appearance of lines including color, width, and dash patterns.
+///
+/// # Examples
+///
+/// ```rust
+/// use scheme::visualizations::{LineStyle, Color};
+///
+/// // Solid black line
+/// let solid_line = LineStyle::solid(Color::BLACK, 1.0);
+///
+/// // Dashed red line
+/// let dashed_line = LineStyle::dashed(Color::RED, 2.0, vec![5.0, 3.0]);
+/// ```
 #[derive(Debug, Clone)]
 pub struct LineStyle {
+    /// Color of the line
     pub color: Color,
+    /// Width of the line in pixels
     pub width: f64,
+    /// Optional dash pattern - alternating lengths of dashes and gaps
     pub dash_pattern: Option<Vec<f64>>,
 }
 
@@ -213,11 +264,25 @@ impl LineStyle {
     }
 }
 
-/// Style for drawing text
+/// Style configuration for drawing text
+///
+/// Defines the visual appearance of text including color, size, and font family.
+///
+/// # Examples
+///
+/// ```rust
+/// use scheme::visualizations::{TextStyle, Color};
+///
+/// // Default text style
+/// let text_style = TextStyle::new(Color::BLACK, 12.0, "Arial");
+/// ```
 #[derive(Debug, Clone)]
 pub struct TextStyle {
+    /// Color of the text
     pub color: Color,
+    /// Font size in points
     pub font_size: f64,
+    /// Font family name
     pub font_family: String,
 }
 

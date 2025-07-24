@@ -101,6 +101,33 @@ pub struct ChannelSystem {
 }
 
 impl ChannelSystem {
+    /// Get all line segments that make up this channel system
+    ///
+    /// This method extracts all the individual line segments from all channels
+    /// in the system, which is useful for rendering and analysis.
+    ///
+    /// # Returns
+    ///
+    /// A vector of line segments, where each segment is represented as a tuple
+    /// of two points (start, end).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use scheme::geometry::generator::create_geometry;
+    /// use scheme::geometry::SplitType;
+    /// use scheme::config::{GeometryConfig, ChannelTypeConfig};
+    ///
+    /// let system = create_geometry(
+    ///     (200.0, 100.0),
+    ///     &[SplitType::Bifurcation],
+    ///     &GeometryConfig::default(),
+    ///     &ChannelTypeConfig::AllStraight,
+    /// );
+    ///
+    /// let lines = system.get_lines();
+    /// println!("System has {} line segments", lines.len());
+    /// ```
     pub fn get_lines(&self) -> Vec<(Point2D, Point2D)> {
         let mut lines = self.box_outline.clone();
         for channel in &self.channels {
@@ -120,6 +147,36 @@ impl ChannelSystem {
         lines
     }
 
+    /// Get the path segments for all channels in the system
+    ///
+    /// This method returns the complete path information for each channel,
+    /// which is particularly useful for serpentine and arc channels that
+    /// have complex paths with multiple points.
+    ///
+    /// # Returns
+    ///
+    /// A vector where each element is a vector of points representing
+    /// the complete path of one channel.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use scheme::geometry::generator::create_geometry;
+    /// use scheme::geometry::SplitType;
+    /// use scheme::config::{GeometryConfig, ChannelTypeConfig, SerpentineConfig};
+    ///
+    /// let system = create_geometry(
+    ///     (200.0, 100.0),
+    ///     &[SplitType::Bifurcation],
+    ///     &GeometryConfig::default(),
+    ///     &ChannelTypeConfig::AllSerpentine(SerpentineConfig::default()),
+    /// );
+    ///
+    /// let paths = system.get_path_segments();
+    /// for (i, path) in paths.iter().enumerate() {
+    ///     println!("Channel {} has {} points in its path", i, path.len());
+    /// }
+    /// ```
     pub fn get_path_segments(&self) -> Vec<Vec<Point2D>> {
         self.channels
             .iter()
