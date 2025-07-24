@@ -148,6 +148,10 @@ path = "examples/svg_demo.rs"
 name = "improved_gaussian_demo"
 path = "examples/schematics/serpentine/improved_gaussian_demo.rs"
 
+[[example]]
+name = "unified_generator_demo"
+path = "examples/unified_generator_demo.rs"
+
 [dev-dependencies]
 criterion = "0.5.1"
 

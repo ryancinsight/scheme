@@ -12,14 +12,37 @@
 
 use super::types::{Channel, ChannelSystem, ChannelType, Node, Point2D, SplitType};
 use super::strategies::ChannelTypeFactory;
+use super::metadata::{OptimizationMetadata, PerformanceMetadata};
+use super::builders::{ChannelBuilder, NodeBuilder};
 use crate::config::{ChannelTypeConfig, GeometryConfig};
 use std::collections::HashMap;
+use std::time::Instant;
+
+/// Configuration for metadata generation
+#[derive(Debug, Clone)]
+pub struct MetadataConfig {
+    /// Whether to track performance metrics during generation
+    pub track_performance: bool,
+    /// Whether to track optimization metadata for serpentine channels
+    pub track_optimization: bool,
+}
+
+impl Default for MetadataConfig {
+    fn default() -> Self {
+        Self {
+            track_performance: false,
+            track_optimization: false,
+        }
+    }
+}
 
 /// Internal geometry generator that builds channel systems incrementally
 ///
 /// This struct follows the Builder pattern and uses the Strategy pattern
 /// for channel type generation. It maintains state during the generation
 /// process and produces a complete `ChannelSystem` when finalized.
+///
+/// Supports optional metadata tracking for performance analysis and optimization.
 struct GeometryGenerator {
     box_dims: (f64, f64),
     nodes: Vec<Node>,
@@ -30,6 +53,8 @@ struct GeometryGenerator {
     config: GeometryConfig,
     channel_type_config: ChannelTypeConfig,
     total_branches: usize,
+    metadata_config: Option<MetadataConfig>,
+    generation_start_time: Option<Instant>,
 }
 
 impl GeometryGenerator {
@@ -49,6 +74,30 @@ impl GeometryGenerator {
             config,
             channel_type_config,
             total_branches,
+            metadata_config: None,
+            generation_start_time: None,
+        }
+    }
+
+    fn new_with_metadata(
+        box_dims: (f64, f64),
+        config: GeometryConfig,
+        channel_type_config: ChannelTypeConfig,
+        total_branches: usize,
+        metadata_config: MetadataConfig,
+    ) -> Self {
+        Self {
+            box_dims,
+            nodes: Vec::new(),
+            channels: Vec::new(),
+            node_counter: 0,
+            channel_counter: 0,
+            point_to_node_id: HashMap::new(),
+            config,
+            channel_type_config,
+            total_branches,
+            metadata_config: Some(metadata_config),
+            generation_start_time: Some(Instant::now()),
         }
     }
 
@@ -61,12 +110,36 @@ impl GeometryGenerator {
         if let Some(id) = self.point_to_node_id.get(&key) {
             return *id;
         }
+
         let id = self.node_counter;
-        self.nodes.push(Node {
-            id,
-            point: p,
-            metadata: None, // No metadata by default for backward compatibility
-        });
+
+        // Create node with optional metadata
+        let node = if let Some(ref metadata_config) = self.metadata_config {
+            let mut node_builder = NodeBuilder::new(id, p);
+
+            // Add performance metadata if enabled
+            if metadata_config.track_performance {
+                if let Some(start_time) = self.generation_start_time {
+                    let perf_metadata = PerformanceMetadata {
+                        generation_time_us: start_time.elapsed().as_micros() as u64,
+                        memory_usage_bytes: std::mem::size_of::<Node>(),
+                        path_points_count: 1, // Single point for node
+                    };
+                    node_builder = node_builder.with_metadata(perf_metadata);
+                }
+            }
+
+            node_builder.build()
+        } else {
+            // Fast path for no metadata
+            Node {
+                id,
+                point: p,
+                metadata: None,
+            }
+        };
+
+        self.nodes.push(node);
         self.point_to_node_id.insert(key, id);
         self.node_counter += 1;
         id
@@ -113,19 +186,67 @@ impl GeometryGenerator {
         let from_id = self.get_or_create_node(p1);
         let to_id = self.get_or_create_node(p2);
         let id = self.channel_counter;
-        
+
         let final_channel_type = channel_type.unwrap_or_else(|| self.determine_channel_type(p1, p2, None));
-        
-        let channel = Channel {
-            id,
-            from_node: from_id,
-            to_node: to_id,
-            width: self.config.channel_width,
-            height: self.config.channel_height,
-            channel_type: final_channel_type,
-            metadata: None, // No metadata by default for backward compatibility
+
+        // Create channel with optional metadata
+        let channel = if let Some(ref metadata_config) = self.metadata_config {
+            let mut channel_builder = ChannelBuilder::new(
+                id,
+                from_id,
+                to_id,
+                self.config.channel_width,
+                self.config.channel_height,
+                final_channel_type.clone()
+            );
+
+            // Add performance metadata if enabled
+            if metadata_config.track_performance {
+                if let Some(start_time) = self.generation_start_time {
+                    let path_points = match &final_channel_type {
+                        ChannelType::Straight => 2,
+                        ChannelType::Serpentine { path } | ChannelType::Arc { path } => path.len(),
+                    };
+
+                    let perf_metadata = PerformanceMetadata {
+                        generation_time_us: start_time.elapsed().as_micros() as u64,
+                        memory_usage_bytes: std::mem::size_of::<Channel>() +
+                            path_points * std::mem::size_of::<Point2D>(),
+                        path_points_count: path_points,
+                    };
+                    channel_builder = channel_builder.with_metadata(perf_metadata);
+                }
+            }
+
+            // Add optimization metadata if enabled and channel is serpentine
+            if metadata_config.track_optimization {
+                if let ChannelType::Serpentine { .. } = &final_channel_type {
+                    let opt_metadata = OptimizationMetadata {
+                        original_length: 0.0, // Will be updated by optimization system
+                        optimized_length: 0.0,
+                        improvement_percentage: 0.0,
+                        iterations: 0,
+                        optimization_time_ms: 0,
+                        optimization_profile: "None".to_string(),
+                    };
+                    channel_builder = channel_builder.with_metadata(opt_metadata);
+                }
+            }
+
+            channel_builder.build()
+        } else {
+            // Fast path for no metadata
+            Channel {
+                id,
+                from_node: from_id,
+                to_node: to_id,
+                width: self.config.channel_width,
+                height: self.config.channel_height,
+                channel_type: final_channel_type,
+                metadata: None,
+            }
         };
-        
+
         self.channels.push(channel);
         self.channel_counter += 1;
     }
@@ -382,4 +503,96 @@ pub fn create_geometry(
 ) -> ChannelSystem {
     let total_branches = splits.iter().map(|s| s.branch_count()).product::<usize>().max(1);
     GeometryGenerator::new(box_dims, *config, *channel_type_config, total_branches).generate(splits)
+}
+
+/// Creates a complete 2D microfluidic channel system with metadata support
+///
+/// This function provides the same functionality as `create_geometry` but with
+/// optional metadata tracking for performance analysis and optimization.
+///
+/// # Arguments
+///
+/// * `box_dims` - Dimensions of the containing box (width, height)
+/// * `splits` - Array of split types defining the branching pattern
+/// * `config` - Geometry configuration (channel dimensions, clearances)
+/// * `channel_type_config` - Configuration for channel type generation
+/// * `metadata_config` - Configuration for metadata tracking
+///
+/// # Returns
+///
+/// A complete `ChannelSystem` containing all nodes, channels, boundary information,
+/// and optional metadata based on the configuration.
+///
+/// # Examples
+///
+/// ```rust
+/// use scheme::{
+///     geometry::{generator::{create_geometry_with_metadata, MetadataConfig}, SplitType},
+///     config::{GeometryConfig, ChannelTypeConfig},
+/// };
+///
+/// let metadata_config = MetadataConfig {
+///     track_performance: true,
+///     track_optimization: true,
+/// };
+///
+/// let system = create_geometry_with_metadata(
+///     (200.0, 100.0),
+///     &[SplitType::Bifurcation],
+///     &GeometryConfig::default(),
+///     &ChannelTypeConfig::AllStraight,
+///     &metadata_config,
+/// );
+/// ```
+pub fn create_geometry_with_metadata(
+    box_dims: (f64, f64),
+    splits: &[SplitType],
+    config: &GeometryConfig,
+    channel_type_config: &ChannelTypeConfig,
+    metadata_config: &MetadataConfig,
+) -> ChannelSystem {
+    let total_branches = splits.iter().map(|s| s.branch_count()).product::<usize>().max(1);
+    GeometryGenerator::new_with_metadata(
+        box_dims,
+        *config,
+        *channel_type_config,
+        total_branches,
+        metadata_config.clone()
+    ).generate(splits)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::geometry::metadata::PerformanceMetadata;
+    use crate::geometry::builders::{ChannelExt, NodeExt};
+
+    #[test]
+    fn test_enhanced_generator_with_performance_metadata() {
+        let metadata_config = MetadataConfig {
+            track_performance: true,
+            track_optimization: false,
+        };
+
+        let system = create_geometry_with_metadata(
+            (100.0, 50.0),
+            &[],
+            &GeometryConfig::default(),
+            &ChannelTypeConfig::AllStraight,
+            &metadata_config,
+        );
+
+        // Check that channels have performance metadata
+        for channel in &system.channels {
+            assert!(channel.has_metadata::<PerformanceMetadata>());
+            let perf_data = channel.get_metadata::<PerformanceMetadata>().unwrap();
+            assert!(perf_data.generation_time_us > 0);
+            assert!(perf_data.memory_usage_bytes > 0);
+        }
+
+        // Check that nodes have performance metadata
+        for node in &system.nodes {
+            assert!(node.has_metadata::<PerformanceMetadata>());
+        }
+    }
 }

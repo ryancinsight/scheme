@@ -209,6 +209,7 @@ The library includes comprehensive examples using the modern API:
 - `dynamic_serpentine_demo` - Advanced demonstration of precise endpoint alignment and custom configurations
 - `gaussian_tone_burst_demo` - Demonstrates Gaussian envelope effects with different width factors
 - `improved_gaussian_demo` - Shows the new distance-based normalization and middle section detection
+- `unified_generator_demo` - Demonstrates the unified generator API with optional metadata support
 
 ### Optimization Examples
 - `basic_optimization` - Simple demonstration of serpentine length optimization
