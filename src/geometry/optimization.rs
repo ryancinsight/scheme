@@ -638,9 +638,11 @@ fn generate_simplified_serpentine_path(
     let max_amplitude = (available_space - geometry_config.wall_clearance - geometry_config.channel_width) * serpentine_config.fill_factor;
     let amplitude = max_amplitude.max(0.0);
     
-    // Generate simplified serpentine path
+    // Generate simplified serpentine path with smooth endpoints
     let base_wavelength = serpentine_config.wavelength_factor * geometry_config.channel_width;
-    let periods = (channel_length / base_wavelength) * serpentine_config.wave_density_factor;
+    let base_periods = (channel_length / base_wavelength) * serpentine_config.wave_density_factor;
+    // Round to nearest integer number of half-periods to ensure sin(π*n) = 0 at endpoints
+    let half_periods = (base_periods * 2.0).round().max(1.0);
     
     for i in 0..n_points {
         let t = i as f64 / (n_points - 1) as f64;
@@ -648,10 +650,12 @@ fn generate_simplified_serpentine_path(
         let base_x = p1.0 + t * dx;
         let base_y = p1.1 + t * dy;
 
-        // Apply improved envelope logic for optimization path as well
-        let envelope = calculate_improved_envelope_for_optimization(t, channel_length, dx, dy, serpentine_config);
+        // Apply smooth endpoint envelope combined with improved Gaussian envelope
+        let smooth_envelope = calculate_smooth_endpoint_envelope_for_optimization(t);
+        let gaussian_envelope = calculate_improved_envelope_for_optimization(t, channel_length, dx, dy, serpentine_config);
+        let envelope = smooth_envelope * gaussian_envelope;
 
-        let wave_phase = 2.0 * std::f64::consts::PI * periods * t;
+        let wave_phase = std::f64::consts::PI * half_periods * t;
         let wave_amplitude = amplitude * envelope * wave_phase.sin();
         
         let perp_x = -dy / channel_length;
@@ -659,7 +663,9 @@ fn generate_simplified_serpentine_path(
         
         let x = base_x + wave_amplitude * perp_x;
         let y = base_y + wave_amplitude * perp_y;
-        
+
+        // Ensure exact endpoint matching for first and last points to maintain precision
+        // The smooth envelope should make wave_amplitude ≈ 0 at endpoints, but we ensure exactness
         if i == 0 {
             path.push(p1);
         } else if i == n_points - 1 {
@@ -670,6 +676,14 @@ fn generate_simplified_serpentine_path(
     }
     
     path
+}
+
+/// Calculate smooth endpoint envelope for optimization
+///
+/// Uses smoothstep function for C¹ continuity at endpoints
+fn calculate_smooth_endpoint_envelope_for_optimization(t: f64) -> f64 {
+    // Smoothstep function: t²(3-2t)
+    t * t * (3.0 - 2.0 * t)
 }
 
 /// Calculate improved Gaussian envelope for optimization (helper function)

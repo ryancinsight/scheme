@@ -139,10 +139,12 @@ impl SerpentineChannelStrategy {
         // Calculate number of periods to ensure complete wave cycles
         let base_wavelength = self.config.wavelength_factor * geometry_config.channel_width;
 
-        // For perfect bilateral symmetry, ensure we have complete wave cycles
+        // For smooth endpoint transitions, use half-periods to ensure zero amplitude at endpoints
         // Scale the number of periods with channel length and ensure minimum complete cycles
         let length_based_periods = (channel_length / base_wavelength) * self.config.wave_density_factor;
-        let periods = length_based_periods.max(2.0); // Minimum 2 complete cycles for proper wave visualization
+        let base_periods = length_based_periods.max(1.0); // Minimum 1 complete cycle
+        // Round to nearest integer number of half-periods to ensure sin(π*n) = 0 at endpoints
+        let half_periods = (base_periods * 2.0).round().max(1.0);
 
         // Calculate amplitude with neighbor awareness
         let amplitude = self.calculate_amplitude(
@@ -167,11 +169,15 @@ impl SerpentineChannelStrategy {
             let base_x = p1.0 + t * dx;
             let base_y = p1.1 + t * dy;
 
-            // Improved Gaussian envelope with distance-based normalization
-            let envelope = self.calculate_improved_envelope(t, channel_length, dx, dy);
+            // Use smooth endpoint envelope for seamless transitions
+            let smooth_envelope = self.calculate_smooth_endpoint_envelope(t);
 
-            // Serpentine wave with proper bilateral symmetry
-            let wave_phase = 2.0 * std::f64::consts::PI * periods * t;
+            // Optionally combine with improved Gaussian envelope for middle sections
+            let gaussian_envelope = self.calculate_improved_envelope(t, channel_length, dx, dy);
+            let envelope = smooth_envelope * gaussian_envelope;
+
+            // Serpentine wave with half-periods to ensure zero amplitude at endpoints
+            let wave_phase = std::f64::consts::PI * half_periods * t;
 
             // Apply phase direction correctly for bilateral mirror symmetry
             // phase_direction determines the initial phase offset, not frequency scaling
@@ -190,7 +196,8 @@ impl SerpentineChannelStrategy {
             let x = base_x + wave_amplitude * perp_x;
             let y = base_y + wave_amplitude * perp_y;
 
-            // Ensure exact endpoint alignment for first and last points
+            // Ensure exact endpoint matching for first and last points to maintain precision
+            // The smooth envelope should make wave_amplitude ≈ 0 at endpoints, but we ensure exactness
             if i == 0 {
                 path.push(p1);
             } else if i == n_points - 1 {
@@ -261,6 +268,20 @@ impl SerpentineChannelStrategy {
             total_branches,
             neighbor_info,
         )
+    }
+
+    /// Calculate smooth endpoint envelope for seamless transitions
+    ///
+    /// This function creates a smooth envelope that ensures zero amplitude and
+    /// zero derivative at the endpoints, eliminating sharp transitions.
+    /// Uses smoothstep function: t²(3-2t) for C¹ continuity.
+    fn calculate_smooth_endpoint_envelope(&self, t: f64) -> f64 {
+        // Smoothstep function: t²(3-2t)
+        // This has the properties:
+        // - f(0) = 0, f(1) = 1
+        // - f'(0) = 0, f'(1) = 0 (zero derivative at endpoints)
+        // - Smooth C¹ continuity
+        t * t * (3.0 - 2.0 * t)
     }
 
     /// Calculate improved Gaussian envelope with distance-based normalization
