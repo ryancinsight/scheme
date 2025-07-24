@@ -15,6 +15,9 @@ fn main() {
         wavelength_factor: 3.0,
         gaussian_width_factor: 4.0,
         wave_density_factor: 3.0,
+        wave_phase_direction: 0.0, // Auto-symmetric
+        optimization_enabled: false,
+        target_fill_ratio: 0.9,
     };
     let channel_config = ChannelTypeConfig::AllSerpentine(serpentine_config);
 

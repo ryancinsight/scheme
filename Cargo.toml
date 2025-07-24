@@ -109,6 +109,10 @@ name = "single_serpentine_channel"
 path = "examples/schematics/serpentine/single_serpentine_channel.rs"
 
 [[example]]
+name = "wave_phase_direction_demo"
+path = "examples/schematics/serpentine/wave_phase_direction_demo.rs"
+
+[[example]]
 name = "bifurcation_arcs"
 path = "examples/schematics/arcs/bifurcation_arcs.rs"
 
@@ -136,7 +140,40 @@ path = "examples/schematics/arcs/enhanced_directional_arcs.rs"
 name = "curvature_direction_demo"
 path = "examples/schematics/arcs/curvature_direction_demo.rs"
 
+[[example]]
+name = "svg_demo"
+path = "examples/svg_demo.rs"
+
 [dev-dependencies]
 criterion = "0.5.1"
+
+[[example]]
+name = "basic_optimization"
+path = "examples/optimization/basic_optimization.rs"
+
+[[example]]
+name = "length_comparison"
+path = "examples/optimization/length_comparison.rs"
+
+[[example]]
+name = "profile_comparison"
+path = "examples/optimization/profile_comparison.rs"
+
+# Metadata examples
+[[example]]
+name = "basic_metadata_usage"
+path = "examples/metadata/basic_metadata_usage.rs"
+
+[[example]]
+name = "custom_metadata_types"
+path = "examples/metadata/custom_metadata_types.rs"
+
+[[bench]]
+name = "geometry_benchmarks"
+harness = false
+
+[[bench]]
+name = "visualization_benchmarks"
+harness = false
 
 [features]

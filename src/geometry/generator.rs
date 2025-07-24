@@ -62,7 +62,11 @@ impl GeometryGenerator {
             return *id;
         }
         let id = self.node_counter;
-        self.nodes.push(Node { id, point: p });
+        self.nodes.push(Node {
+            id,
+            point: p,
+            metadata: None, // No metadata by default for backward compatibility
+        });
         self.point_to_node_id.insert(key, id);
         self.node_counter += 1;
         id
@@ -119,6 +123,7 @@ impl GeometryGenerator {
             width: self.config.channel_width,
             height: self.config.channel_height,
             channel_type: final_channel_type,
+            metadata: None, // No metadata by default for backward compatibility
         };
         
         self.channels.push(channel);

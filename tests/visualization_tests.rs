@@ -48,10 +48,10 @@ impl SchematicRenderer for MockRenderer {
 /// Create a simple test channel system
 fn create_test_system() -> ChannelSystem {
     let nodes = vec![
-        Node { id: 0, point: (0.0, 5.0) },
-        Node { id: 1, point: (10.0, 5.0) },
+        Node { id: 0, point: (0.0, 5.0), metadata: None },
+        Node { id: 1, point: (10.0, 5.0), metadata: None },
     ];
-    
+
     let channels = vec![
         Channel {
             id: 0,
@@ -60,6 +60,7 @@ fn create_test_system() -> ChannelSystem {
             width: 1.0,
             height: 0.5,
             channel_type: ChannelType::Straight,
+            metadata: None,
         }
     ];
     
@@ -200,14 +201,16 @@ fn test_plotters_renderer_creation() {
     let renderer = create_plotters_renderer();
     let formats = renderer.supported_formats();
     
-    // PlottersRenderer should support PNG and JPEG
+    // PlottersRenderer should support PNG, JPEG, and SVG
     assert!(formats.contains(&OutputFormat::PNG));
     assert!(formats.contains(&OutputFormat::JPEG));
-    
+    assert!(formats.contains(&OutputFormat::SVG));
+
     // Test path validation
     assert!(renderer.validate_output_path("test.png").is_ok());
     assert!(renderer.validate_output_path("test.jpg").is_ok());
-    assert!(renderer.validate_output_path("test.svg").is_err());
+    assert!(renderer.validate_output_path("test.svg").is_ok());
+    assert!(renderer.validate_output_path("test.pdf").is_err()); // PDF not supported yet
 }
 
 /// Test empty channel system handling

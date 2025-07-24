@@ -25,6 +25,7 @@ Scheme supports different channel geometries as part of its DAG architecture wit
 - **Linear Near Nodes**: Channels remain linear near connection points, becoming serpentine in the middle
 - **Smooth Channel Separation**: Allows channels to separate before becoming serpentine
 - **Dynamic Wavelength Adaptation**: Wavelength automatically adapts to channel length for optimal appearance
+- **Length Optimization**: Automatically optimize parameters to maximize channel length while maintaining wall clearance
 - **Configurable Parameters**: Control amplitude factor, wavelength factor, periods, and Gaussian width
 
 Channel types can be configured using the `ChannelTypeConfig` enum:
@@ -67,6 +68,72 @@ let config = ChannelTypeConfig::Custom(|from, to, box_dims| {
     }
 });
 ```
+
+## Serpentine Length Optimization
+
+The library includes an optimization system that automatically adjusts serpentine channel parameters to maximize channel length while maintaining proper wall clearance and multi-channel compatibility.
+
+### Enabling Optimization
+
+```rust
+use scheme::config::{SerpentineConfig, presets};
+
+// Create optimized configuration
+let optimized_config = SerpentineConfig::new_with_optimization(
+    0.8,  // fill_factor
+    3.0,  // wavelength_factor
+    6.0,  // gaussian_width_factor
+    2.0,  // wave_density_factor
+    0.95, // target_fill_ratio (95% of maximum possible length)
+)?;
+
+// Or use the preset
+let optimized_config = presets::optimized_serpentine();
+```
+
+### Optimization Features
+
+- **Automatic Parameter Tuning**: Optimizes wavelength_factor, wave_density_factor, and fill_factor
+- **Multiple Optimization Profiles**: Fast, Balanced, and Thorough optimization modes
+- **Advanced Algorithms**: Uses Nelder-Mead simplex optimization for intelligent parameter search
+- **Constraint Satisfaction**: Maintains wall clearance and neighbor spacing requirements
+- **Multi-Channel Compatibility**: Works with complex split patterns and multiple channels
+- **Bilateral Symmetry Preservation**: Maintains perfect mirror symmetry during optimization
+- **Configurable Target**: Set target fill ratio (80-99% of theoretical maximum length)
+
+### Optimization Profiles
+
+- **Fast Profile**: Limited parameter exploration (5-10x slower than standard)
+- **Balanced Profile**: Moderate exploration using Nelder-Mead algorithm (20-50x slower)
+- **Thorough Profile**: Extensive multi-start optimization (100-500x slower)
+
+## Extensible Metadata System
+
+The library features a comprehensive metadata system that allows you to attach arbitrary tracking data to channels and nodes without breaking existing functionality.
+
+### Key Features
+
+- **Type-Safe Storage**: Metadata is stored and retrieved using Rust's type system
+- **Zero-Cost Abstraction**: No performance impact when metadata is not used
+- **Backward Compatibility**: All existing code continues to work unchanged
+- **Extensible Design**: Easy to add new metadata types for any domain
+- **Builder Patterns**: Convenient APIs for creating channels and nodes with metadata
+
+### Built-in Metadata Types
+
+- **FlowMetadata**: Flow rates, pressure drops, Reynolds numbers, velocities
+- **ThermalMetadata**: Temperature, heat transfer coefficients, thermal conductivity
+- **ManufacturingMetadata**: Tolerances, surface roughness, manufacturing methods
+- **OptimizationMetadata**: Optimization history, improvements, iteration counts
+- **PerformanceMetadata**: Generation times, memory usage, performance metrics
+
+### Performance Considerations
+
+Optimization adds computational overhead (typically 500-1000x slower than standard generation) but provides significant length improvements in many cases. For production use, consider:
+
+- Using optimization during design phase and caching optimal parameters
+- Disabling optimization for real-time applications
+- Using preset configurations that balance performance and length
 
 ## Quick Start
 
@@ -137,6 +204,15 @@ The library includes comprehensive examples using the modern API:
 - `channel_type_demo` - Comprehensive demonstration of all channel type configurations
 - `dynamic_serpentine_demo` - Advanced demonstration of precise endpoint alignment and custom configurations
 - `gaussian_tone_burst_demo` - Demonstrates Gaussian envelope effects with different width factors
+
+### Optimization Examples
+- `basic_optimization` - Simple demonstration of serpentine length optimization
+- `length_comparison` - Comprehensive comparison of standard vs optimized channel lengths
+- `profile_comparison` - Comparison of Fast, Balanced, and Thorough optimization profiles
+
+### Metadata Examples
+- `basic_metadata_usage` - Introduction to the extensible metadata system
+- `custom_metadata_types` - Creating and using custom metadata types for specific domains
 
 Run any example with:
 

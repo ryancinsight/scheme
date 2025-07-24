@@ -17,7 +17,11 @@
 //! - **Factory Pattern**: For creating appropriate strategies
 //! - **Builder Pattern**: For constructing complex geometries
 
+pub mod builders;
+pub mod enhanced_generator;
 pub mod generator;
+pub mod metadata;
+pub mod optimization;
 pub mod strategies;
 pub mod types;
 

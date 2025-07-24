@@ -3,6 +3,12 @@
 //! This module defines the fundamental data structures used throughout
 //! the 2D microfluidic schematic design system. It provides types for
 //! representing points, nodes, channels, and complete channel systems.
+//!
+//! The system supports extensible metadata through the metadata module,
+//! allowing for easy addition of new tracking variables without breaking
+//! existing functionality.
+
+use crate::geometry::metadata::MetadataContainer;
 
 /// A 2D point represented as (x, y) coordinates
 pub type Point2D = (f64, f64);
@@ -11,12 +17,17 @@ pub type Point2D = (f64, f64);
 ///
 /// Nodes are used to define the endpoints of channels and serve as
 /// junction points where multiple channels can connect.
+///
+/// The node supports extensible metadata for tracking additional properties
+/// like pressure, temperature, or manufacturing tolerances.
 #[derive(Debug, Clone)]
 pub struct Node {
     /// Unique identifier for this node
     pub id: usize,
     /// 2D coordinates of the node
     pub point: Point2D,
+    /// Optional metadata container for extensible properties
+    pub metadata: Option<MetadataContainer>,
 }
 
 /// Represents the different types of channels that can be generated
@@ -51,6 +62,9 @@ impl Default for ChannelType {
 ///
 /// A channel connects two nodes and has physical properties like width and height.
 /// The channel type determines how the path between the nodes is generated.
+///
+/// The channel supports extensible metadata for tracking additional properties
+/// like flow rates, pressure drops, optimization history, or manufacturing data.
 #[derive(Debug, Clone)]
 pub struct Channel {
     /// Unique identifier for this channel
@@ -65,6 +79,8 @@ pub struct Channel {
     pub height: f64,
     /// The type and path of this channel
     pub channel_type: ChannelType,
+    /// Optional metadata container for extensible properties
+    pub metadata: Option<MetadataContainer>,
 }
 
 /// Represents a complete microfluidic channel system

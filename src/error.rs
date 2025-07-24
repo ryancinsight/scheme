@@ -117,6 +117,10 @@ pub enum VisualizationError {
     #[error("Cannot visualize empty channel system")]
     EmptyChannelSystem,
 
+    /// Unsupported output format
+    #[error("Unsupported output format: {format}. {message}")]
+    UnsupportedFormat { format: String, message: String },
+
     /// Coordinate transformation error
     #[error("Coordinate transformation error: {message}")]
     CoordinateTransformError { message: String },
@@ -227,6 +231,14 @@ impl VisualizationError {
     /// Create a rendering error
     pub fn rendering_error(message: &str) -> Self {
         Self::RenderingError { message: message.to_string() }
+    }
+
+    /// Create an unsupported format error
+    pub fn unsupported_format(format: &str, message: &str) -> Self {
+        Self::UnsupportedFormat {
+            format: format.to_string(),
+            message: message.to_string(),
+        }
     }
 }
 

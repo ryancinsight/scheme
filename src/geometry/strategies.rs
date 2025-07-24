@@ -5,6 +5,7 @@
 //! with new channel types while adhering to SOLID principles.
 
 use crate::geometry::{ChannelType, Point2D};
+use crate::geometry::optimization::optimize_serpentine_parameters;
 use crate::config::{ArcConfig, ChannelTypeConfig, GeometryConfig, SerpentineConfig, constants};
 
 /// Strategy trait for generating different types of channels
@@ -77,14 +78,25 @@ impl ChannelTypeStrategy for SerpentineChannelStrategy {
         total_branches: usize,
         neighbor_info: Option<&[f64]>,
     ) -> ChannelType {
-        let path = self.generate_serpentine_path(
-            from,
-            to,
-            geometry_config,
-            box_dims,
-            total_branches,
-            neighbor_info,
-        );
+        let path = if self.config.optimization_enabled {
+            self.generate_optimized_serpentine_path(
+                from,
+                to,
+                geometry_config,
+                box_dims,
+                total_branches,
+                neighbor_info,
+            )
+        } else {
+            self.generate_serpentine_path(
+                from,
+                to,
+                geometry_config,
+                box_dims,
+                total_branches,
+                neighbor_info,
+            )
+        };
         ChannelType::Serpentine { path }
     }
 }
@@ -110,12 +122,13 @@ impl SerpentineChannelStrategy {
 
         let _branch_factor = (total_branches as f64).powf(0.75).max(1.0);
 
-        // Calculate number of periods based on channel length for better scaling
+        // Calculate number of periods to ensure complete wave cycles
         let base_wavelength = self.config.wavelength_factor * geometry_config.channel_width;
-        
-        // Scale the number of periods with channel length
+
+        // For perfect bilateral symmetry, ensure we have complete wave cycles
+        // Scale the number of periods with channel length and ensure minimum complete cycles
         let length_based_periods = (channel_length / base_wavelength) * self.config.wave_density_factor;
-        let periods = length_based_periods.max(1.0);
+        let periods = length_based_periods.max(2.0); // Minimum 2 complete cycles for proper wave visualization
 
         // Calculate amplitude with neighbor awareness
         let amplitude = self.calculate_amplitude(
@@ -126,6 +139,9 @@ impl SerpentineChannelStrategy {
             total_branches,
             neighbor_info,
         );
+
+        // Calculate wave phase direction for perfect mirror symmetry
+        let phase_direction = self.calculate_wave_phase_direction(p1, p2, box_dims);
 
         // Gaussian envelope parameters
         let sigma = channel_length / self.config.gaussian_width_factor;
@@ -142,9 +158,18 @@ impl SerpentineChannelStrategy {
             // Gaussian envelope for smooth transitions
             let envelope = (-0.5 * ((s - center) / sigma).powi(2)).exp();
 
-            // Serpentine wave
+            // Serpentine wave with proper bilateral symmetry
             let wave_phase = 2.0 * std::f64::consts::PI * periods * t;
-            let wave_amplitude = amplitude * envelope * wave_phase.sin();
+
+            // Apply phase direction correctly for bilateral mirror symmetry
+            // phase_direction determines the initial phase offset, not frequency scaling
+            let phase_offset = if phase_direction > 0.0 {
+                0.0 // Positive phase: start with sine wave (0 phase)
+            } else {
+                std::f64::consts::PI // Negative phase: start with inverted sine wave (π phase)
+            };
+
+            let wave_amplitude = amplitude * envelope * (wave_phase + phase_offset).sin();
 
             // Apply perpendicular offset
             let perp_x = -dy / channel_length;
@@ -164,6 +189,66 @@ impl SerpentineChannelStrategy {
         }
 
         path
+    }
+
+    /// Generate an optimized serpentine path between two points
+    fn generate_optimized_serpentine_path(
+        &self,
+        p1: Point2D,
+        p2: Point2D,
+        geometry_config: &GeometryConfig,
+        box_dims: (f64, f64),
+        total_branches: usize,
+        neighbor_info: Option<&[f64]>,
+    ) -> Vec<Point2D> {
+        // Run optimization to find best parameters
+        let optimization_result = optimize_serpentine_parameters(
+            p1,
+            p2,
+            geometry_config,
+            &self.config,
+            box_dims,
+            neighbor_info,
+        );
+
+        // Create optimized configuration
+        let optimized_config = SerpentineConfig {
+            wavelength_factor: optimization_result.params.wavelength_factor,
+            wave_density_factor: optimization_result.params.wave_density_factor,
+            fill_factor: optimization_result.params.fill_factor,
+            ..self.config
+        };
+
+        // Generate path with optimized parameters
+        let strategy = SerpentineChannelStrategy::new(optimized_config);
+        strategy.generate_serpentine_path(
+            p1,
+            p2,
+            geometry_config,
+            box_dims,
+            total_branches,
+            neighbor_info,
+        )
+    }
+
+    /// Generate serpentine path for optimization purposes (public interface)
+    pub fn generate_serpentine_path_for_optimization(
+        &self,
+        p1: Point2D,
+        p2: Point2D,
+        geometry_config: &GeometryConfig,
+        box_dims: (f64, f64),
+        total_branches: usize,
+        neighbor_info: Option<&[f64]>,
+    ) -> Vec<Point2D> {
+        self.generate_serpentine_path(
+            p1,
+            p2,
+            geometry_config,
+            box_dims,
+            total_branches,
+            neighbor_info,
+        )
     }
 
     /// Calculate appropriate amplitude for serpentine channels
@@ -210,6 +295,67 @@ impl SerpentineChannelStrategy {
         let enhanced_fill_factor = (fill_factor * 1.5).min(0.95);
         
         (max_safe_amplitude * enhanced_fill_factor).max(geometry_config.channel_width * 0.5)
+    }
+
+    /// Calculate wave phase direction for perfect bilateral mirror symmetry
+    fn calculate_wave_phase_direction(&self, p1: Point2D, p2: Point2D, box_dims: (f64, f64)) -> f64 {
+        // If wave phase direction is explicitly set, use it
+        if self.config.wave_phase_direction.abs() > 1e-6 {
+            return self.config.wave_phase_direction;
+        }
+
+        // Auto-determine phase direction for perfect bilateral mirror symmetry
+        let dx = p2.0 - p1.0;
+        let dy = p2.1 - p1.1;
+        let box_center_x = box_dims.0 / 2.0;
+        let box_center_y = box_dims.1 / 2.0;
+
+        // Determine if this is a split (left half) or merge (right half) based on x-position
+        let channel_center_x = (p1.0 + p2.0) / 2.0;
+        let is_left_half = channel_center_x < box_center_x;
+
+        // Check if this is a mostly horizontal channel
+        let is_mostly_horizontal = dy.abs() < dx.abs() * 0.5;
+
+        if is_mostly_horizontal {
+            // For horizontal channels, create perfect bilateral symmetry
+            let channel_center_y = (p1.1 + p2.1) / 2.0;
+            let is_above_center = channel_center_y > box_center_y;
+
+            // Key insight: For perfect bilateral symmetry, the phase direction should be
+            // consistent across the vertical centerline but opposite for upper/lower branches
+            if is_above_center {
+                1.0 // Upper channels: positive phase (consistent across left/right)
+            } else {
+                -1.0 // Lower channels: negative phase (consistent across left/right)
+            }
+        } else {
+            // For angled channels (splits/merges), create perfect bilateral mirror symmetry
+            // Key insight: The right half should be a PERFECT MIRROR of the left half
+
+            if is_left_half {
+                // Left half (splits): Use position relative to center for consistent phasing
+                let channel_center_y = (p1.1 + p2.1) / 2.0;
+                let is_above_center = channel_center_y > box_center_y;
+
+                if is_above_center {
+                    1.0 // Upper branch: positive phase
+                } else {
+                    -1.0 // Lower branch: negative phase
+                }
+            } else {
+                // Right half (merges): MIRROR the left half exactly
+                // For perfect bilateral symmetry, use the same logic as left half
+                let channel_center_y = (p1.1 + p2.1) / 2.0;
+                let is_above_center = channel_center_y > box_center_y;
+
+                if is_above_center {
+                    1.0 // Upper branch: positive phase (mirrors left upper)
+                } else {
+                    -1.0 // Lower branch: negative phase (mirrors left lower)
+                }
+            }
+        }
     }
 }
 

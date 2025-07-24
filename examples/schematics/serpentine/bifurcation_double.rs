@@ -1,5 +1,5 @@
 use scheme::{
-    config::{ChannelTypeConfig, GeometryConfig},
+    config::{ChannelTypeConfig, GeometryConfig, SerpentineConfig},
     geometry::{generator::create_geometry, SplitType},
     visualizations::schematic::plot_geometry,
 };
@@ -10,7 +10,16 @@ fn main() {
 
     let config = GeometryConfig::default();
 
-    let channel_config = ChannelTypeConfig::default(); // MixedByPosition
+    let serpentine_config = SerpentineConfig {
+        fill_factor: 0.8,
+        wavelength_factor: 3.0,
+        gaussian_width_factor: 6.0,
+        wave_density_factor: 2.0,
+        wave_phase_direction: 0.0, // Auto-symmetric
+        optimization_enabled: false,
+        target_fill_ratio: 0.9,
+    };
+    let channel_config = ChannelTypeConfig::AllSerpentine(serpentine_config);
 
     let splits = vec![SplitType::Bifurcation, SplitType::Bifurcation];
     let system = create_geometry((20.0, 10.0), &splits, &config, &channel_config);

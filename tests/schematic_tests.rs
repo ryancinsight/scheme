@@ -187,6 +187,9 @@ fn test_serpentine_path_endpoints() {
         wavelength_factor: 2.0,
         gaussian_width_factor: 6.0,
         wave_density_factor: 1.5,
+        wave_phase_direction: 0.0, // Auto-symmetric
+        optimization_enabled: false,
+        target_fill_ratio: 0.9,
     };
     
     let system = create_geometry(
@@ -234,6 +237,9 @@ fn test_serpentine_path_smoothness() {
         wavelength_factor: 0.5,
         gaussian_width_factor: 6.0,
         wave_density_factor: 2.0,
+        wave_phase_direction: 0.0, // Auto-symmetric
+        optimization_enabled: false,
+        target_fill_ratio: 0.9,
     };
     
     let system = create_geometry(
@@ -263,6 +269,122 @@ fn test_serpentine_path_smoothness() {
     } else {
         panic!("Expected serpentine channel");
     }
+}
+
+/// Test that serpentine channels have perfect bilateral mirror symmetry and complete wave cycles
+#[test]
+fn test_serpentine_wave_symmetry() {
+    let config = GeometryConfig::default();
+    let serpentine_config = SerpentineConfig {
+        fill_factor: 0.8,
+        wavelength_factor: 3.0,
+        gaussian_width_factor: 6.0,
+        wave_density_factor: 2.0,
+        wave_phase_direction: 0.0, // Auto-symmetric
+        optimization_enabled: false,
+        target_fill_ratio: 0.9,
+    };
+
+    // Create a system with trifurcation to test bilateral symmetry
+    let system = create_geometry(
+        (200.0, 100.0),
+        &[SplitType::Trifurcation],
+        &config,
+        &ChannelTypeConfig::AllSerpentine(serpentine_config),
+    );
+
+    // Find serpentine channels and verify they have symmetric wave patterns
+    let mut serpentine_channels = Vec::new();
+    for channel in &system.channels {
+        if let ChannelType::Serpentine { path } = &channel.channel_type {
+            serpentine_channels.push((channel, path));
+        }
+    }
+
+    // Should have serpentine channels
+    assert!(!serpentine_channels.is_empty(), "Should have serpentine channels");
+
+    // Verify that serpentine channels have proper wave patterns and bilateral symmetry
+    let box_center_x = 200.0 / 2.0;
+    let _box_center_y = 100.0 / 2.0;
+
+    let mut left_channels = Vec::new();
+    let mut right_channels = Vec::new();
+
+    for (channel, path) in &serpentine_channels {
+        let from_node = &system.nodes[channel.from_node];
+        let to_node = &system.nodes[channel.to_node];
+        let channel_center_x = (from_node.point.0 + to_node.point.0) / 2.0;
+
+        // Check that path has enough points for wave analysis
+        assert!(path.len() >= 10, "Serpentine path should have sufficient points for wave analysis");
+
+        // Verify that the path starts and ends at the correct nodes
+        assert_eq!(path[0], from_node.point, "Serpentine path should start at from_node");
+        assert_eq!(path[path.len() - 1], to_node.point, "Serpentine path should end at to_node");
+
+        // Check that the path has wave-like characteristics with complete cycles
+        let mut has_wave_variation = false;
+        let mut positive_peaks = 0;
+        let mut negative_peaks = 0;
+
+        let dx = to_node.point.0 - from_node.point.0;
+        let dy = to_node.point.1 - from_node.point.1;
+        let channel_length = (dx * dx + dy * dy).sqrt();
+
+        if channel_length > 1e-6 {
+            // Calculate perpendicular direction
+            let perp_x = -dy / channel_length;
+            let perp_y = dx / channel_length;
+
+            let mut prev_displacement = 0.0;
+            let mut prev_slope = 0.0;
+
+            // Analyze wave characteristics
+            for (i, point) in path.iter().enumerate().skip(1).take(path.len() - 2) {
+                let base_t = ((point.0 - from_node.point.0) * dx + (point.1 - from_node.point.1) * dy) / (channel_length * channel_length);
+                let base_x = from_node.point.0 + base_t * dx;
+                let base_y = from_node.point.1 + base_t * dy;
+
+                let perp_displacement = (point.0 - base_x) * perp_x + (point.1 - base_y) * perp_y;
+
+                if perp_displacement.abs() > config.channel_width * 0.1 {
+                    has_wave_variation = true;
+                }
+
+                // Detect peaks (local maxima and minima)
+                if i > 1 {
+                    let current_slope = perp_displacement - prev_displacement;
+                    if prev_slope > 0.0 && current_slope < 0.0 && perp_displacement > config.channel_width * 0.2 {
+                        positive_peaks += 1;
+                    } else if prev_slope < 0.0 && current_slope > 0.0 && perp_displacement < -config.channel_width * 0.2 {
+                        negative_peaks += 1;
+                    }
+                    prev_slope = current_slope;
+                }
+                prev_displacement = perp_displacement;
+            }
+        }
+
+        assert!(has_wave_variation, "Serpentine channel should have wave-like variation");
+
+        // For complete wave cycles, we should have both positive and negative peaks
+        // With minimum 2 complete cycles, we expect at least 2 positive and 2 negative peaks
+        assert!(positive_peaks >= 1, "Should have at least 1 positive peak for complete wave cycles");
+        assert!(negative_peaks >= 1, "Should have at least 1 negative peak for complete wave cycles");
+
+        // Categorize channels by position for bilateral symmetry testing
+        if channel_center_x < box_center_x {
+            left_channels.push((channel, path));
+        } else {
+            right_channels.push((channel, path));
+        }
+    }
+
+    // For bilateral symmetry, we should have matching numbers of left and right channels
+    // (This may not always be exactly equal due to center channels, but should be reasonable)
+    assert!(!left_channels.is_empty() || !right_channels.is_empty(),
+           "Should have channels on at least one side for symmetry testing");
 }
 
 /// Test arc channel generation

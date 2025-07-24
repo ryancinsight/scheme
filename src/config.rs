@@ -156,6 +156,17 @@ impl Default for GeometryConfig {
     }
 }
 
+/// Optimization profile for serpentine channel optimization
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum OptimizationProfile {
+    /// Fast optimization with limited parameter exploration (5-10x slower)
+    Fast,
+    /// Balanced optimization with moderate exploration (20-50x slower)
+    Balanced,
+    /// Thorough optimization with extensive exploration (100-500x slower)
+    Thorough,
+}
+
 /// Configuration for serpentine (S-shaped) channels
 #[derive(Debug, Clone, Copy)]
 pub struct SerpentineConfig {
@@ -167,6 +178,14 @@ pub struct SerpentineConfig {
     pub gaussian_width_factor: f64,
     /// Controls wave density relative to channel length - higher = more waves (0.5 to 10.0)
     pub wave_density_factor: f64,
+    /// Controls wave phase direction for symmetry: -1.0=force inward, 1.0=force outward, 0.0=auto-symmetric
+    pub wave_phase_direction: f64,
+    /// Enable length optimization algorithm (default: false for backward compatibility)
+    pub optimization_enabled: bool,
+    /// Target fill ratio for optimization - fraction of maximum possible length to achieve (0.8 to 0.99)
+    pub target_fill_ratio: f64,
+    /// Optimization profile controlling speed vs quality tradeoff
+    pub optimization_profile: OptimizationProfile,
 }
 
 impl SerpentineConfig {
@@ -182,6 +201,77 @@ impl SerpentineConfig {
             wavelength_factor,
             gaussian_width_factor,
             wave_density_factor,
+            wave_phase_direction: 0.0, // Auto-determine for perfect symmetry
+            optimization_enabled: false, // Disabled by default for backward compatibility
+            target_fill_ratio: 0.9, // Default target for optimization
+            optimization_profile: OptimizationProfile::Balanced, // Default profile
+        };
+        config.validate()?;
+        Ok(config)
+    }
+
+    /// Create a new serpentine configuration with optimization enabled
+    pub fn new_with_optimization(
+        fill_factor: f64,
+        wavelength_factor: f64,
+        gaussian_width_factor: f64,
+        wave_density_factor: f64,
+        target_fill_ratio: f64,
+    ) -> ConfigurationResult<Self> {
+        let config = Self {
+            fill_factor,
+            wavelength_factor,
+            gaussian_width_factor,
+            wave_density_factor,
+            wave_phase_direction: 0.0, // Auto-determine for perfect symmetry
+            optimization_enabled: true,
+            target_fill_ratio,
+            optimization_profile: OptimizationProfile::Balanced, // Default profile
+        };
+        config.validate()?;
+        Ok(config)
+    }
+
+    /// Create a new serpentine configuration with optimization and profile
+    pub fn new_with_optimization_profile(
+        fill_factor: f64,
+        wavelength_factor: f64,
+        gaussian_width_factor: f64,
+        wave_density_factor: f64,
+        target_fill_ratio: f64,
+        optimization_profile: OptimizationProfile,
+    ) -> ConfigurationResult<Self> {
+        let config = Self {
+            fill_factor,
+            wavelength_factor,
+            gaussian_width_factor,
+            wave_density_factor,
+            wave_phase_direction: 0.0, // Auto-determine for perfect symmetry
+            optimization_enabled: true,
+            target_fill_ratio,
+            optimization_profile,
+        };
+        config.validate()?;
+        Ok(config)
+    }
+
+    /// Create a new serpentine configuration with explicit wave phase direction control
+    pub fn new_with_phase_direction(
+        fill_factor: f64,
+        wavelength_factor: f64,
+        gaussian_width_factor: f64,
+        wave_density_factor: f64,
+        wave_phase_direction: f64,
+    ) -> ConfigurationResult<Self> {
+        let config = Self {
+            fill_factor,
+            wavelength_factor,
+            gaussian_width_factor,
+            wave_density_factor,
+            wave_phase_direction,
+            optimization_enabled: false, // Disabled by default for backward compatibility
+            target_fill_ratio: 0.9, // Default target for optimization
+            optimization_profile: OptimizationProfile::Balanced, // Default profile
         };
         config.validate()?;
         Ok(config)
@@ -218,6 +308,22 @@ impl SerpentineConfig {
                 "wave_density_factor",
                 self.wave_density_factor,
                 &format!("Must be between {} and {}", constants::MIN_WAVE_DENSITY_FACTOR, constants::MAX_WAVE_DENSITY_FACTOR)
+            ));
+        }
+
+        if self.wave_phase_direction.abs() > 1.0 {
+            return Err(ConfigurationError::invalid_serpentine_config(
+                "wave_phase_direction",
+                self.wave_phase_direction,
+                "Must be between -1.0 and 1.0"
+            ));
+        }
+
+        if self.target_fill_ratio < 0.8 || self.target_fill_ratio > 0.99 {
+            return Err(ConfigurationError::invalid_serpentine_config(
+                "target_fill_ratio",
+                self.target_fill_ratio,
+                "Must be between 0.8 and 0.99"
             ));
         }
 
@@ -296,6 +402,10 @@ impl Default for SerpentineConfig {
             wavelength_factor: constants::DEFAULT_WAVELENGTH_FACTOR,
             gaussian_width_factor: constants::DEFAULT_GAUSSIAN_WIDTH_FACTOR,
             wave_density_factor: constants::DEFAULT_WAVE_DENSITY_FACTOR,
+            wave_phase_direction: 0.0, // Auto-determine for perfect symmetry
+            optimization_enabled: false, // Disabled by default for backward compatibility
+            target_fill_ratio: 0.9, // Default target for optimization
+            optimization_profile: OptimizationProfile::Balanced, // Default profile
         }
     }
 }
@@ -370,6 +480,10 @@ pub mod presets {
             wavelength_factor: 2.0,
             gaussian_width_factor: 8.0,
             wave_density_factor: 4.0,
+            wave_phase_direction: 0.0, // Auto-symmetric
+            optimization_enabled: false,
+            target_fill_ratio: 0.9,
+            optimization_profile: OptimizationProfile::Balanced,
         }
     }
 
@@ -380,6 +494,80 @@ pub mod presets {
             wavelength_factor: 4.0,
             gaussian_width_factor: 10.0,
             wave_density_factor: 1.5,
+            wave_phase_direction: 0.0, // Auto-symmetric
+            optimization_enabled: false,
+            target_fill_ratio: 0.9,
+            optimization_profile: OptimizationProfile::Balanced,
+        }
+    }
+
+    /// Preset for inward-phase serpentine channels (all waves start inward)
+    pub fn inward_serpentines() -> SerpentineConfig {
+        SerpentineConfig {
+            fill_factor: 0.8,
+            wavelength_factor: 3.0,
+            gaussian_width_factor: 6.0,
+            wave_density_factor: 2.0,
+            wave_phase_direction: -1.0, // Force inward phase
+            optimization_enabled: false,
+            target_fill_ratio: 0.9,
+            optimization_profile: OptimizationProfile::Balanced,
+        }
+    }
+
+    /// Preset for outward-phase serpentine channels (all waves start outward)
+    pub fn outward_serpentines() -> SerpentineConfig {
+        SerpentineConfig {
+            fill_factor: 0.8,
+            wavelength_factor: 3.0,
+            gaussian_width_factor: 6.0,
+            wave_density_factor: 2.0,
+            wave_phase_direction: 1.0, // Force outward phase
+            optimization_enabled: false,
+            target_fill_ratio: 0.9,
+            optimization_profile: OptimizationProfile::Balanced,
+        }
+    }
+
+    /// Preset for length-optimized serpentine channels
+    pub fn optimized_serpentine() -> SerpentineConfig {
+        SerpentineConfig {
+            fill_factor: 0.8,
+            wavelength_factor: 3.0,
+            gaussian_width_factor: 6.0,
+            wave_density_factor: 2.0,
+            wave_phase_direction: 0.0, // Auto-symmetric
+            optimization_enabled: true,
+            target_fill_ratio: 0.95, // Aggressive optimization target
+            optimization_profile: OptimizationProfile::Balanced,
+        }
+    }
+
+    /// Preset for fast-optimized serpentine channels
+    pub fn fast_optimized_serpentine() -> SerpentineConfig {
+        SerpentineConfig {
+            fill_factor: 0.8,
+            wavelength_factor: 3.0,
+            gaussian_width_factor: 6.0,
+            wave_density_factor: 2.0,
+            wave_phase_direction: 0.0, // Auto-symmetric
+            optimization_enabled: true,
+            target_fill_ratio: 0.9, // Moderate optimization target
+            optimization_profile: OptimizationProfile::Fast,
+        }
+    }
+
+    /// Preset for thorough-optimized serpentine channels
+    pub fn thorough_optimized_serpentine() -> SerpentineConfig {
+        SerpentineConfig {
+            fill_factor: 0.8,
+            wavelength_factor: 3.0,
+            gaussian_width_factor: 6.0,
+            wave_density_factor: 2.0,
+            wave_phase_direction: 0.0, // Auto-symmetric
+            optimization_enabled: true,
+            target_fill_ratio: 0.98, // Very aggressive optimization target
+            optimization_profile: OptimizationProfile::Thorough,
         }
     }
 

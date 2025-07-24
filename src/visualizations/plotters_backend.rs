@@ -13,6 +13,7 @@ use crate::visualizations::traits::{
 use plotters::prelude::*;
 use plotters::coord::{Shift, types::RangedCoordf64};
 use plotters::style::Color as PlottersColor;
+use std::path::Path;
 
 /// Plotters-based implementation of the schematic renderer
 pub struct PlottersRenderer;
@@ -28,21 +29,104 @@ impl SchematicRenderer for PlottersRenderer {
         if system.channels.is_empty() && system.nodes.is_empty() {
             return Err(VisualizationError::EmptyChannelSystem);
         }
-        
+
         self.validate_output_path(output_path)?;
-        
+
+        // Determine output format from file extension
+        let output_format = self.detect_output_format(output_path)?;
+
+        match output_format {
+            OutputFormat::PNG | OutputFormat::JPEG => {
+                self.render_bitmap(system, output_path, config)
+            }
+            OutputFormat::SVG => {
+                self.render_svg(system, output_path, config)
+            }
+            OutputFormat::PDF => {
+                Err(VisualizationError::UnsupportedFormat {
+                    format: "PDF".to_string(),
+                    message: "PDF output is not yet implemented".to_string(),
+                })
+            }
+        }
+    }
+    
+    fn supported_formats(&self) -> Vec<OutputFormat> {
+        vec![OutputFormat::PNG, OutputFormat::JPEG, OutputFormat::SVG]
+    }
+}
+
+impl PlottersRenderer {
+    /// Detect output format from file extension
+    fn detect_output_format(&self, output_path: &str) -> VisualizationResult<OutputFormat> {
+        let path = Path::new(output_path);
+        let extension = path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_lowercase())
+            .ok_or_else(|| VisualizationError::invalid_output_path(
+                output_path,
+                "File must have a valid extension"
+            ))?;
+
+        match extension.as_str() {
+            "png" => Ok(OutputFormat::PNG),
+            "jpg" | "jpeg" => Ok(OutputFormat::JPEG),
+            "svg" => Ok(OutputFormat::SVG),
+            "pdf" => Ok(OutputFormat::PDF),
+            _ => Err(VisualizationError::invalid_output_path(
+                output_path,
+                &format!("Unsupported file extension: .{}", extension)
+            ))
+        }
+    }
+
+    /// Render to bitmap formats (PNG, JPEG)
+    fn render_bitmap(
+        &self,
+        system: &ChannelSystem,
+        output_path: &str,
+        config: &RenderConfig,
+    ) -> VisualizationResult<()> {
         // Create the drawing backend
         let root = BitMapBackend::new(output_path, (config.width, config.height))
             .into_drawing_area();
-        
+
         root.fill(&convert_color(&config.background_color))
             .map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;
-        
+
+        self.render_with_backend(system, config, root, output_path)
+    }
+
+    /// Render to SVG format
+    fn render_svg(
+        &self,
+        system: &ChannelSystem,
+        output_path: &str,
+        config: &RenderConfig,
+    ) -> VisualizationResult<()> {
+        // Create the SVG backend
+        let root = SVGBackend::new(output_path, (config.width, config.height))
+            .into_drawing_area();
+
+        root.fill(&convert_color(&config.background_color))
+            .map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;
+
+        self.render_with_backend(system, config, root, output_path)
+    }
+
+    /// Common rendering logic for both bitmap and SVG backends
+    fn render_with_backend<DB: DrawingBackend>(
+        &self,
+        system: &ChannelSystem,
+        config: &RenderConfig,
+        root: DrawingArea<DB, Shift>,
+        output_path: &str,
+    ) -> VisualizationResult<()> {
         // Set up coordinate system
         let (length, width) = system.box_dims;
         let x_buffer = length * config.margin_fraction;
         let y_buffer = width * config.margin_fraction;
-        
+
         let mut chart = ChartBuilder::on(&root)
             .caption(&config.title, (config.title_style.font_family.as_str(), config.title_style.font_size as i32))
             .margin(20)
@@ -54,7 +138,7 @@ impl SchematicRenderer for PlottersRenderer {
                 -y_buffer..width + y_buffer,
             )
             .map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;
-        
+
         if config.show_axes {
             chart
                 .configure_mesh()
@@ -63,7 +147,7 @@ impl SchematicRenderer for PlottersRenderer {
                 .draw()
                 .map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;
         }
-        
+
         // Draw boundary box
         chart.draw_series(
             system.box_outline.iter().map(|&(p1, p2)| {
@@ -84,16 +168,12 @@ impl SchematicRenderer for PlottersRenderer {
                 )
             })
         ).map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;
-        
+
         root.present()
             .map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;
-        
-        println!("Schematic plot saved to {output_path}");
+
+        println!("Schematic plot saved to {}", output_path);
         Ok(())
-    }
-    
-    fn supported_formats(&self) -> Vec<OutputFormat> {
-        vec![OutputFormat::PNG, OutputFormat::JPEG]
     }
 }
 
