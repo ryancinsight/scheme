@@ -56,6 +56,141 @@ impl ChannelTypeStrategy for StraightChannelStrategy {
     }
 }
 
+/// Strategy for creating smooth straight channels with transition zones
+#[derive(Debug, Clone)]
+pub struct SmoothStraightChannelStrategy {
+    /// Configuration for transition zones
+    pub transition_config: SmoothTransitionConfig,
+}
+
+/// Configuration for smooth transition zones in straight channels
+#[derive(Debug, Clone, Copy)]
+pub struct SmoothTransitionConfig {
+    /// Length of transition zone as fraction of channel length (0.0 to 0.5)
+    pub transition_length_factor: f64,
+    /// Maximum amplitude of transition waves relative to channel width
+    pub transition_amplitude_factor: f64,
+    /// Number of points to use for transition smoothing
+    pub transition_smoothness: usize,
+}
+
+impl Default for SmoothTransitionConfig {
+    fn default() -> Self {
+        Self {
+            transition_length_factor: 0.15, // 15% of channel length for transitions
+            transition_amplitude_factor: 0.3, // 30% of channel width for amplitude
+            transition_smoothness: 20, // 20 points per transition zone
+        }
+    }
+}
+
+impl SmoothStraightChannelStrategy {
+    pub fn new(config: SmoothTransitionConfig) -> Self {
+        Self {
+            transition_config: config,
+        }
+    }
+}
+
+impl ChannelTypeStrategy for SmoothStraightChannelStrategy {
+    fn create_channel(
+        &self,
+        from: Point2D,
+        to: Point2D,
+        geometry_config: &GeometryConfig,
+        _box_dims: (f64, f64),
+        _total_branches: usize,
+        _neighbor_info: Option<&[f64]>,
+    ) -> ChannelType {
+        let path = self.generate_smooth_straight_path(from, to, geometry_config);
+        ChannelType::SmoothStraight { path }
+    }
+}
+
+impl SmoothStraightChannelStrategy {
+    /// Generate a smooth straight path with transition zones at endpoints
+    fn generate_smooth_straight_path(
+        &self,
+        p1: Point2D,
+        p2: Point2D,
+        geometry_config: &GeometryConfig,
+    ) -> Vec<Point2D> {
+        let dx = p2.0 - p1.0;
+        let dy = p2.1 - p1.1;
+        let channel_length = (dx * dx + dy * dy).sqrt();
+
+        // For very short channels, just return straight line
+        if channel_length < geometry_config.channel_width * 2.0 {
+            return vec![p1, p2];
+        }
+
+        let transition_length = channel_length * self.transition_config.transition_length_factor;
+        let max_amplitude = geometry_config.channel_width * self.transition_config.transition_amplitude_factor;
+
+        // Calculate total points: transition + middle + transition
+        let transition_points = self.transition_config.transition_smoothness;
+        let middle_points = 10; // Simple straight section
+        let total_points = transition_points * 2 + middle_points;
+
+        let mut path = Vec::with_capacity(total_points);
+
+        // Perpendicular direction for wave displacement
+        let perp_x = -dy / channel_length;
+        let perp_y = dx / channel_length;
+
+        for i in 0..total_points {
+            let t = i as f64 / (total_points - 1) as f64;
+
+            // Base position along the line
+            let base_x = p1.0 + t * dx;
+            let base_y = p1.1 + t * dy;
+
+            // Calculate smooth transition amplitude
+            let amplitude = self.calculate_transition_amplitude(t, transition_length / channel_length, max_amplitude);
+
+            // Apply small wave for smooth transition
+            let wave_phase = std::f64::consts::PI * 2.0 * t; // One complete wave across the channel
+            let wave_amplitude = amplitude * wave_phase.sin();
+
+            let x = base_x + wave_amplitude * perp_x;
+            let y = base_y + wave_amplitude * perp_y;
+
+            // Ensure exact endpoints
+            if i == 0 {
+                path.push(p1);
+            } else if i == total_points - 1 {
+                path.push(p2);
+            } else {
+                path.push((x, y));
+            }
+        }
+
+        path
+    }
+
+    /// Calculate transition amplitude that smoothly goes to zero at endpoints
+    fn calculate_transition_amplitude(&self, t: f64, transition_factor: f64, max_amplitude: f64) -> f64 {
+        // Create smooth transitions at both ends
+        let start_transition = if t < transition_factor {
+            // Smooth ramp up from 0 to 1 using smoothstep
+            let local_t = t / transition_factor;
+            local_t * local_t * (3.0 - 2.0 * local_t)
+        } else {
+            1.0
+        };
+
+        let end_transition = if t > (1.0 - transition_factor) {
+            // Smooth ramp down from 1 to 0 using smoothstep
+            let local_t = (1.0 - t) / transition_factor;
+            local_t * local_t * (3.0 - 2.0 * local_t)
+        } else {
+            1.0
+        };
+
+        max_amplitude * start_transition * end_transition
+    }
+}
+
 /// Strategy for creating serpentine channels
 #[derive(Debug, Clone)]
 pub struct SerpentineChannelStrategy {
@@ -634,6 +769,10 @@ impl ChannelTypeFactory {
         match config {
             ChannelTypeConfig::AllStraight => Box::new(StraightChannelStrategy),
 
+            ChannelTypeConfig::AllSmoothStraight(smooth_config) => {
+                Box::new(SmoothStraightChannelStrategy::new(*smooth_config))
+            }
+
             ChannelTypeConfig::AllSerpentine(serpentine_config) => {
                 Box::new(SerpentineChannelStrategy::new(*serpentine_config))
             }
@@ -663,6 +802,10 @@ impl ChannelTypeFactory {
 
             ChannelTypeConfig::Smart { serpentine_config, arc_config } => {
                 Self::create_smart_strategy(from, to, box_dims, *serpentine_config, *arc_config)
+            }
+
+            ChannelTypeConfig::SmoothSerpentineWithTransitions { serpentine_config, smooth_straight_config } => {
+                Self::create_smooth_serpentine_strategy(from, to, box_dims, *serpentine_config, *smooth_straight_config)
             }
 
             ChannelTypeConfig::Custom(func) => {
@@ -698,6 +841,30 @@ impl ChannelTypeFactory {
         } else {
             // Default to straight
             Box::new(StraightChannelStrategy)
+        }
+    }
+
+    /// Create a smooth serpentine strategy with smooth straight junction connectors
+    fn create_smooth_serpentine_strategy(
+        from: Point2D,
+        to: Point2D,
+        box_dims: (f64, f64),
+        serpentine_config: SerpentineConfig,
+        smooth_straight_config: SmoothTransitionConfig,
+    ) -> Box<dyn ChannelTypeStrategy> {
+        let dx = to.0 - from.0;
+        let dy = to.1 - from.1;
+        let length = (dx * dx + dy * dy).sqrt();
+
+        // Use serpentine for longer horizontal channels (branches)
+        // Use smooth straight for shorter channels and junction connectors
+        if length > box_dims.0 * constants::strategy_thresholds::LONG_HORIZONTAL_THRESHOLD
+            && dy.abs() < dx.abs() * constants::strategy_thresholds::HORIZONTAL_ANGLE_THRESHOLD {
+            // Long horizontal channel - use serpentine
+            Box::new(SerpentineChannelStrategy::new(serpentine_config))
+        } else {
+            // Junction connectors and short channels - use smooth straight
+            Box::new(SmoothStraightChannelStrategy::new(smooth_straight_config))
         }
     }
 

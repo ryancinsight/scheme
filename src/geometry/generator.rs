@@ -205,7 +205,7 @@ impl GeometryGenerator {
                 if let Some(start_time) = self.generation_start_time {
                     let path_points = match &final_channel_type {
                         ChannelType::Straight => 2,
-                        ChannelType::Serpentine { path } | ChannelType::Arc { path } => path.len(),
+                        ChannelType::SmoothStraight { path } | ChannelType::Serpentine { path } | ChannelType::Arc { path } => path.len(),
                     };
 
                     let perf_metadata = PerformanceMetadata {

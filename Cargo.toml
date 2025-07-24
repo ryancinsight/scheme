@@ -156,6 +156,10 @@ path = "examples/unified_generator_demo.rs"
 name = "smooth_serpentine_demo"
 path = "examples/smooth_serpentine_demo.rs"
 
+[[example]]
+name = "smooth_transitions_demo"
+path = "examples/smooth_transitions_demo.rs"
+
 [dev-dependencies]
 criterion = "0.5.1"
 

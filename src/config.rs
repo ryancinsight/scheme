@@ -14,6 +14,7 @@
 //! - **Discoverability**: Presets and builders make common configurations easy
 
 use crate::geometry::ChannelType;
+use crate::geometry::strategies::SmoothTransitionConfig;
 use crate::error::{ConfigurationError, ConfigurationResult};
 
 /// Configuration constants for geometry validation and defaults
@@ -464,6 +465,8 @@ impl Default for ArcConfig {
 pub enum ChannelTypeConfig {
     /// All channels will be straight lines
     AllStraight,
+    /// All channels will be smooth straight lines with transition zones
+    AllSmoothStraight(SmoothTransitionConfig),
     /// All channels will be serpentine with the specified configuration
     AllSerpentine(SerpentineConfig),
     /// All channels will be arcs with the specified configuration
@@ -483,6 +486,13 @@ pub enum ChannelTypeConfig {
         serpentine_config: SerpentineConfig,
         /// Configuration for arc channels when selected by smart algorithm
         arc_config: ArcConfig,
+    },
+    /// Smooth serpentine channels with smooth straight junction connectors
+    SmoothSerpentineWithTransitions {
+        /// Configuration for serpentine channels in branches
+        serpentine_config: SerpentineConfig,
+        /// Configuration for smooth straight channels in junction connectors
+        smooth_straight_config: SmoothTransitionConfig,
     },
     /// Custom function for determining channel type based on endpoints and box dimensions
     Custom(fn(from: (f64, f64), to: (f64, f64), box_dims: (f64, f64)) -> ChannelType),

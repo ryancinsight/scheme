@@ -34,12 +34,18 @@ pub struct Node {
 ///
 /// Each channel type has different characteristics:
 /// - `Straight`: Direct line between two points
+/// - `SmoothStraight`: Straight line with optional smooth transition zones at endpoints
 /// - `Serpentine`: Sinusoidal path with Gaussian envelope for smooth transitions
 /// - `Arc`: Curved path using quadratic Bezier curves
 #[derive(Debug, Clone)]
 pub enum ChannelType {
     /// A straight line channel between two points
     Straight,
+    /// A straight line channel with smooth transition zones at endpoints
+    SmoothStraight {
+        /// The sequence of points defining the smooth straight path with transitions
+        path: Vec<Point2D>
+    },
     /// A serpentine (S-shaped) channel with a predefined path
     Serpentine {
         /// The sequence of points defining the serpentine path
@@ -137,7 +143,7 @@ impl ChannelSystem {
                     let to = self.nodes[channel.to_node].point;
                     lines.push((from, to));
                 }
-                ChannelType::Serpentine { path } | ChannelType::Arc { path } => {
+                ChannelType::SmoothStraight { path } | ChannelType::Serpentine { path } | ChannelType::Arc { path } => {
                     for i in 0..path.len() - 1 {
                         lines.push((path[i], path[i + 1]));
                     }
@@ -181,7 +187,7 @@ impl ChannelSystem {
         self.channels
             .iter()
             .filter_map(|c| match &c.channel_type {
-                ChannelType::Serpentine { path } | ChannelType::Arc { path } => Some(path.clone()),
+                ChannelType::SmoothStraight { path } | ChannelType::Serpentine { path } | ChannelType::Arc { path } => Some(path.clone()),
                 _ => None,
             })
             .collect()
