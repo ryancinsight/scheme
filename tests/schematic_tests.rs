@@ -17,6 +17,7 @@ fn test_basic_schematic_generation() {
         wall_clearance: 4.0,
         channel_width: 6.0,
         channel_height: 6.0,
+        generation: scheme::config::GeometryGenerationConfig::default(),
     };
     
     let system = create_geometry(
@@ -109,6 +110,7 @@ fn test_channel_system_lines() {
         wall_clearance: 4.0,
         channel_width: 3.0,
         channel_height: 3.0,
+        generation: scheme::config::GeometryGenerationConfig::default(),
     };
     
     let system = create_geometry(
@@ -169,6 +171,7 @@ fn test_mixed_channel_types() {
     for channel in &system.channels {
         match channel.channel_type {
             ChannelType::Straight => has_straight = true,
+            ChannelType::SmoothStraight { .. } => has_straight = true,
             ChannelType::Serpentine { .. } => {},
             ChannelType::Arc { .. } => {},
         }
@@ -454,6 +457,7 @@ fn test_smart_channel_types() {
     for channel in &system.channels {
         match &channel.channel_type {
             ChannelType::Straight => { channel_types.insert("straight"); },
+            ChannelType::SmoothStraight { .. } => { channel_types.insert("smooth_straight"); },
             ChannelType::Serpentine { .. } => { channel_types.insert("serpentine"); },
             ChannelType::Arc { .. } => { channel_types.insert("arc"); },
         }

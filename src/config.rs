@@ -26,6 +26,35 @@ pub mod constants {
     /// Default wall clearance (mm)
     pub const DEFAULT_WALL_CLEARANCE: f64 = 0.5;
 
+    // Rendering and geometry generation constants
+    /// Default number of points for serpentine path generation
+    pub const DEFAULT_SERPENTINE_POINTS: usize = 100;
+    /// Minimum number of points for serpentine path generation
+    pub const MIN_SERPENTINE_POINTS: usize = 10;
+    /// Maximum number of points for serpentine path generation
+    pub const MAX_SERPENTINE_POINTS: usize = 1000;
+
+    /// Default number of points for optimization path generation
+    pub const DEFAULT_OPTIMIZATION_POINTS: usize = 50;
+    /// Minimum number of points for optimization path generation
+    pub const MIN_OPTIMIZATION_POINTS: usize = 10;
+    /// Maximum number of points for optimization path generation
+    pub const MAX_OPTIMIZATION_POINTS: usize = 200;
+
+    /// Default number of middle points for smooth straight channels
+    pub const DEFAULT_SMOOTH_STRAIGHT_MIDDLE_POINTS: usize = 10;
+    /// Minimum number of middle points for smooth straight channels
+    pub const MIN_SMOOTH_STRAIGHT_MIDDLE_POINTS: usize = 2;
+    /// Maximum number of middle points for smooth straight channels
+    pub const MAX_SMOOTH_STRAIGHT_MIDDLE_POINTS: usize = 50;
+
+    /// Default wave multiplier for smooth transitions (2π for one complete wave)
+    pub const DEFAULT_TRANSITION_WAVE_MULTIPLIER: f64 = 2.0;
+    /// Minimum wave multiplier for smooth transitions
+    pub const MIN_TRANSITION_WAVE_MULTIPLIER: f64 = 0.5;
+    /// Maximum wave multiplier for smooth transitions
+    pub const MAX_TRANSITION_WAVE_MULTIPLIER: f64 = 10.0;
+
     /// Minimum allowed channel width (mm)
     pub const MIN_CHANNEL_WIDTH: f64 = 0.01;
     /// Maximum allowed channel width (mm)
@@ -97,6 +126,130 @@ pub mod constants {
     }
 }
 
+/// Configuration for geometry generation parameters
+///
+/// This struct controls the quality and precision of geometry generation,
+/// including point density for path generation and wave calculations.
+///
+/// # Examples
+///
+/// ```rust
+/// use scheme::config::GeometryGenerationConfig;
+///
+/// // Create with default values
+/// let config = GeometryGenerationConfig::default();
+///
+/// // Create with custom values for high-quality generation
+/// let high_quality = GeometryGenerationConfig {
+///     serpentine_points: 200,
+///     optimization_points: 100,
+///     smooth_straight_middle_points: 20,
+///     transition_wave_multiplier: 2.0,
+/// };
+/// ```
+#[derive(Clone, Copy, Debug)]
+pub struct GeometryGenerationConfig {
+    /// Number of points to generate for serpentine paths (10-1000)
+    pub serpentine_points: usize,
+    /// Number of points to generate for optimization paths (10-200)
+    pub optimization_points: usize,
+    /// Number of middle points for smooth straight channels (2-50)
+    pub smooth_straight_middle_points: usize,
+    /// Wave multiplier for smooth transitions (0.5-10.0, where 2.0 = one complete wave)
+    pub transition_wave_multiplier: f64,
+}
+
+impl Default for GeometryGenerationConfig {
+    fn default() -> Self {
+        Self {
+            serpentine_points: constants::DEFAULT_SERPENTINE_POINTS,
+            optimization_points: constants::DEFAULT_OPTIMIZATION_POINTS,
+            smooth_straight_middle_points: constants::DEFAULT_SMOOTH_STRAIGHT_MIDDLE_POINTS,
+            transition_wave_multiplier: constants::DEFAULT_TRANSITION_WAVE_MULTIPLIER,
+        }
+    }
+}
+
+impl GeometryGenerationConfig {
+    /// Create a new geometry generation configuration with validation
+    pub fn new(
+        serpentine_points: usize,
+        optimization_points: usize,
+        smooth_straight_middle_points: usize,
+        transition_wave_multiplier: f64,
+    ) -> ConfigurationResult<Self> {
+        let config = Self {
+            serpentine_points,
+            optimization_points,
+            smooth_straight_middle_points,
+            transition_wave_multiplier,
+        };
+        config.validate()?;
+        Ok(config)
+    }
+
+    /// Validate the configuration parameters
+    pub fn validate(&self) -> ConfigurationResult<()> {
+        if self.serpentine_points < constants::MIN_SERPENTINE_POINTS
+            || self.serpentine_points > constants::MAX_SERPENTINE_POINTS {
+            return Err(ConfigurationError::invalid_generation_config(
+                "serpentine_points",
+                &format!("Must be between {} and {}",
+                    constants::MIN_SERPENTINE_POINTS, constants::MAX_SERPENTINE_POINTS)
+            ));
+        }
+
+        if self.optimization_points < constants::MIN_OPTIMIZATION_POINTS
+            || self.optimization_points > constants::MAX_OPTIMIZATION_POINTS {
+            return Err(ConfigurationError::invalid_generation_config(
+                "optimization_points",
+                &format!("Must be between {} and {}",
+                    constants::MIN_OPTIMIZATION_POINTS, constants::MAX_OPTIMIZATION_POINTS)
+            ));
+        }
+
+        if self.smooth_straight_middle_points < constants::MIN_SMOOTH_STRAIGHT_MIDDLE_POINTS
+            || self.smooth_straight_middle_points > constants::MAX_SMOOTH_STRAIGHT_MIDDLE_POINTS {
+            return Err(ConfigurationError::invalid_generation_config(
+                "smooth_straight_middle_points",
+                &format!("Must be between {} and {}",
+                    constants::MIN_SMOOTH_STRAIGHT_MIDDLE_POINTS, constants::MAX_SMOOTH_STRAIGHT_MIDDLE_POINTS)
+            ));
+        }
+
+        if self.transition_wave_multiplier < constants::MIN_TRANSITION_WAVE_MULTIPLIER
+            || self.transition_wave_multiplier > constants::MAX_TRANSITION_WAVE_MULTIPLIER {
+            return Err(ConfigurationError::invalid_generation_config(
+                "transition_wave_multiplier",
+                &format!("Must be between {} and {}",
+                    constants::MIN_TRANSITION_WAVE_MULTIPLIER, constants::MAX_TRANSITION_WAVE_MULTIPLIER)
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Create a high-quality configuration for detailed generation
+    pub fn high_quality() -> Self {
+        Self {
+            serpentine_points: 200,
+            optimization_points: 100,
+            smooth_straight_middle_points: 20,
+            transition_wave_multiplier: 2.0,
+        }
+    }
+
+    /// Create a fast configuration for quick generation
+    pub fn fast() -> Self {
+        Self {
+            serpentine_points: 50,
+            optimization_points: 25,
+            smooth_straight_middle_points: 5,
+            transition_wave_multiplier: 2.0,
+        }
+    }
+}
+
 /// Configuration for basic geometry parameters
 ///
 /// This struct defines the fundamental geometric constraints for microfluidic
@@ -121,6 +274,8 @@ pub struct GeometryConfig {
     pub channel_width: f64,
     /// Height of channels (mm) - used for 3D-aware calculations
     pub channel_height: f64,
+    /// Configuration for geometry generation quality and precision
+    pub generation: GeometryGenerationConfig,
 }
 
 impl GeometryConfig {
@@ -130,6 +285,24 @@ impl GeometryConfig {
             wall_clearance,
             channel_width,
             channel_height,
+            generation: GeometryGenerationConfig::default(),
+        };
+        config.validate()?;
+        Ok(config)
+    }
+
+    /// Create a new geometry configuration with custom generation settings
+    pub fn with_generation(
+        wall_clearance: f64,
+        channel_width: f64,
+        channel_height: f64,
+        generation: GeometryGenerationConfig,
+    ) -> ConfigurationResult<Self> {
+        let config = Self {
+            wall_clearance,
+            channel_width,
+            channel_height,
+            generation,
         };
         config.validate()?;
         Ok(config)
@@ -161,6 +334,9 @@ impl GeometryConfig {
             ));
         }
 
+        // Validate generation configuration
+        self.generation.validate()?;
+
         Ok(())
     }
 }
@@ -171,6 +347,7 @@ impl Default for GeometryConfig {
             wall_clearance: constants::DEFAULT_WALL_CLEARANCE,
             channel_width: constants::DEFAULT_CHANNEL_WIDTH,
             channel_height: constants::DEFAULT_CHANNEL_HEIGHT,
+            generation: GeometryGenerationConfig::default(),
         }
     }
 }
@@ -517,6 +694,7 @@ pub mod presets {
             wall_clearance: 0.2,
             channel_width: 0.5,
             channel_height: 0.3,
+            generation: GeometryGenerationConfig::high_quality(),
         }
     }
 
@@ -531,6 +709,7 @@ pub mod presets {
             wall_clearance: 2.0,
             channel_width: 5.0,
             channel_height: 2.0,
+            generation: GeometryGenerationConfig::fast(),
         }
     }
 
@@ -638,6 +817,46 @@ pub mod presets {
             curvature_factor: 0.2,
             smoothness: 30,
             curvature_direction: 0.0, // Auto-determine
+        }
+    }
+
+    /// Preset for high-quality geometry generation
+    pub fn high_quality_generation() -> GeometryConfig {
+        GeometryConfig {
+            wall_clearance: constants::DEFAULT_WALL_CLEARANCE,
+            channel_width: constants::DEFAULT_CHANNEL_WIDTH,
+            channel_height: constants::DEFAULT_CHANNEL_HEIGHT,
+            generation: GeometryGenerationConfig::high_quality(),
+        }
+    }
+
+    /// Preset for fast geometry generation
+    pub fn fast_generation() -> GeometryConfig {
+        GeometryConfig {
+            wall_clearance: constants::DEFAULT_WALL_CLEARANCE,
+            channel_width: constants::DEFAULT_CHANNEL_WIDTH,
+            channel_height: constants::DEFAULT_CHANNEL_HEIGHT,
+            generation: GeometryGenerationConfig::fast(),
+        }
+    }
+
+    /// Preset for microfluidic research applications
+    pub fn research_grade() -> GeometryConfig {
+        GeometryConfig {
+            wall_clearance: 0.3,
+            channel_width: 0.8,
+            channel_height: 0.5,
+            generation: GeometryGenerationConfig::high_quality(),
+        }
+    }
+
+    /// Preset for industrial manufacturing applications
+    pub fn manufacturing_grade() -> GeometryConfig {
+        GeometryConfig {
+            wall_clearance: 1.0,
+            channel_width: 2.0,
+            channel_height: 1.5,
+            generation: GeometryGenerationConfig::fast(),
         }
     }
 

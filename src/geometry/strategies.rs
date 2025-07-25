@@ -64,14 +64,37 @@ pub struct SmoothStraightChannelStrategy {
 }
 
 /// Configuration for smooth transition zones in straight channels
+///
+/// This configuration controls the smooth transition zones at the endpoints
+/// of straight channels to eliminate sharp corners when connecting to other
+/// channel types.
+///
+/// # Examples
+///
+/// ```rust
+/// use scheme::geometry::strategies::SmoothTransitionConfig;
+///
+/// // Create with default values
+/// let config = SmoothTransitionConfig::default();
+///
+/// // Create with custom values for subtle transitions
+/// let subtle = SmoothTransitionConfig {
+///     transition_length_factor: 0.1,
+///     transition_amplitude_factor: 0.2,
+///     transition_smoothness: 15,
+///     wave_multiplier: 1.5,
+/// };
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct SmoothTransitionConfig {
     /// Length of transition zone as fraction of channel length (0.0 to 0.5)
     pub transition_length_factor: f64,
-    /// Maximum amplitude of transition waves relative to channel width
+    /// Maximum amplitude of transition waves relative to channel width (0.0 to 1.0)
     pub transition_amplitude_factor: f64,
-    /// Number of points to use for transition smoothing
+    /// Number of points to use for transition smoothing (5 to 100)
     pub transition_smoothness: usize,
+    /// Wave multiplier for transition waves (0.5 to 10.0, where 2.0 = one complete wave)
+    pub wave_multiplier: f64,
 }
 
 impl Default for SmoothTransitionConfig {
@@ -80,6 +103,87 @@ impl Default for SmoothTransitionConfig {
             transition_length_factor: 0.15, // 15% of channel length for transitions
             transition_amplitude_factor: 0.3, // 30% of channel width for amplitude
             transition_smoothness: 20, // 20 points per transition zone
+            wave_multiplier: 2.0, // One complete wave across the channel
+        }
+    }
+}
+
+impl SmoothTransitionConfig {
+    /// Create a new smooth transition configuration with validation
+    pub fn new(
+        transition_length_factor: f64,
+        transition_amplitude_factor: f64,
+        transition_smoothness: usize,
+        wave_multiplier: f64,
+    ) -> Result<Self, String> {
+        let config = Self {
+            transition_length_factor,
+            transition_amplitude_factor,
+            transition_smoothness,
+            wave_multiplier,
+        };
+        config.validate()?;
+        Ok(config)
+    }
+
+    /// Validate the configuration parameters
+    pub fn validate(&self) -> Result<(), String> {
+        if self.transition_length_factor < 0.0 || self.transition_length_factor > 0.5 {
+            return Err("transition_length_factor must be between 0.0 and 0.5".to_string());
+        }
+
+        if self.transition_amplitude_factor < 0.0 || self.transition_amplitude_factor > 1.0 {
+            return Err("transition_amplitude_factor must be between 0.0 and 1.0".to_string());
+        }
+
+        if self.transition_smoothness < 5 || self.transition_smoothness > 100 {
+            return Err("transition_smoothness must be between 5 and 100".to_string());
+        }
+
+        if self.wave_multiplier < 0.5 || self.wave_multiplier > 10.0 {
+            return Err("wave_multiplier must be between 0.5 and 10.0".to_string());
+        }
+
+        Ok(())
+    }
+
+    /// Create a subtle transition configuration
+    pub fn subtle() -> Self {
+        Self {
+            transition_length_factor: 0.1,
+            transition_amplitude_factor: 0.2,
+            transition_smoothness: 15,
+            wave_multiplier: 1.5,
+        }
+    }
+
+    /// Create a pronounced transition configuration
+    pub fn pronounced() -> Self {
+        Self {
+            transition_length_factor: 0.25,
+            transition_amplitude_factor: 0.5,
+            transition_smoothness: 30,
+            wave_multiplier: 3.0,
+        }
+    }
+
+    /// Create a high-quality transition configuration for detailed work
+    pub fn high_quality() -> Self {
+        Self {
+            transition_length_factor: 0.2,
+            transition_amplitude_factor: 0.4,
+            transition_smoothness: 50,
+            wave_multiplier: 2.0,
+        }
+    }
+
+    /// Create a fast transition configuration for quick generation
+    pub fn fast() -> Self {
+        Self {
+            transition_length_factor: 0.15,
+            transition_amplitude_factor: 0.3,
+            transition_smoothness: 10,
+            wave_multiplier: 2.0,
         }
     }
 }
@@ -129,7 +233,7 @@ impl SmoothStraightChannelStrategy {
 
         // Calculate total points: transition + middle + transition
         let transition_points = self.transition_config.transition_smoothness;
-        let middle_points = 10; // Simple straight section
+        let middle_points = geometry_config.generation.smooth_straight_middle_points;
         let total_points = transition_points * 2 + middle_points;
 
         let mut path = Vec::with_capacity(total_points);
@@ -149,7 +253,7 @@ impl SmoothStraightChannelStrategy {
             let amplitude = self.calculate_transition_amplitude(t, transition_length / channel_length, max_amplitude);
 
             // Apply small wave for smooth transition
-            let wave_phase = std::f64::consts::PI * 2.0 * t; // One complete wave across the channel
+            let wave_phase = std::f64::consts::PI * self.transition_config.wave_multiplier * t;
             let wave_amplitude = amplitude * wave_phase.sin();
 
             let x = base_x + wave_amplitude * perp_x;
@@ -261,7 +365,7 @@ impl SerpentineChannelStrategy {
         total_branches: usize,
         neighbor_info: Option<&[f64]>,
     ) -> Vec<Point2D> {
-        let n_points = 100;
+        let n_points = geometry_config.generation.serpentine_points;
         let mut path = Vec::with_capacity(n_points);
 
         let dx = p2.0 - p1.0;

@@ -9,6 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         wall_clearance: 3.0,
         channel_width: 2.5,
         channel_height: 2.5,
+        generation: scheme::config::GeometryGenerationConfig::default(),
     };
 
     // Create output directory if it doesn't exist

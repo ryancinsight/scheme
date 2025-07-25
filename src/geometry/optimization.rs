@@ -609,7 +609,7 @@ fn generate_simplified_serpentine_path(
     box_dims: (f64, f64),
     neighbor_info: Option<&[f64]>,
 ) -> Vec<Point2D> {
-    let n_points = 50; // Fewer points for faster optimization
+    let n_points = geometry_config.generation.optimization_points;
     let mut path = Vec::with_capacity(n_points);
     
     let dx = p2.0 - p1.0;

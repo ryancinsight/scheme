@@ -9,6 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         wall_clearance: 4.0,
         channel_width: 3.0,
         channel_height: 3.0,
+        generation: scheme::config::GeometryGenerationConfig::default(),
     };
 
     let serpentine_config = SerpentineConfig {
@@ -56,6 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for channel in &system.channels {
         match &channel.channel_type {
             scheme::geometry::ChannelType::Straight => straight_count += 1,
+            scheme::geometry::ChannelType::SmoothStraight { .. } => straight_count += 1,
             scheme::geometry::ChannelType::Serpentine { .. } => serpentine_count += 1,
             scheme::geometry::ChannelType::Arc { .. } => arc_count += 1,
         }

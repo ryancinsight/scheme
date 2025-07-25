@@ -90,6 +90,10 @@ pub enum ConfigurationError {
     #[error("Invalid arc configuration: {field} = {value}. {constraint}")]
     InvalidArcConfig { field: String, value: f64, constraint: String },
 
+    /// Invalid geometry generation configuration
+    #[error("Invalid geometry generation configuration: {field}. {constraint}")]
+    InvalidGenerationConfig { field: String, constraint: String },
+
     /// Conflicting configuration values
     #[error("Conflicting configuration values: {conflict}")]
     ConflictingValues { conflict: String },
@@ -215,6 +219,14 @@ impl ConfigurationError {
         Self::InvalidArcConfig {
             field: field.to_string(),
             value,
+            constraint: constraint.to_string(),
+        }
+    }
+
+    /// Create an invalid geometry generation config error
+    pub fn invalid_generation_config(field: &str, constraint: &str) -> Self {
+        Self::InvalidGenerationConfig {
+            field: field.to_string(),
             constraint: constraint.to_string(),
         }
     }

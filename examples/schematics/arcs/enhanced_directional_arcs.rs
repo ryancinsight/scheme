@@ -18,6 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         wall_clearance: 15.0,
         channel_width: 4.0,
         channel_height: 1.0,
+        generation: scheme::config::GeometryGenerationConfig::default(),
     };
 
     // Complex multi-level branching to test enhanced logic

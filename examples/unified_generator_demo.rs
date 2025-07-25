@@ -1,7 +1,7 @@
 use scheme::{
     geometry::{
         generator::{create_geometry, create_geometry_with_metadata, MetadataConfig},
-        builders::{ChannelExt, NodeExt},
+        builders::ChannelExt,
         metadata::PerformanceMetadata,
         SplitType,
     },

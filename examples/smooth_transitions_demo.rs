@@ -28,6 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         transition_length_factor: 0.2, // 20% of channel length for transitions
         transition_amplitude_factor: 0.4, // 40% of channel width for amplitude
         transition_smoothness: 25, // 25 points per transition zone
+        wave_multiplier: 2.0, // One complete wave across the channel
     };
 
     // 1. Original serpentine with sharp transitions

@@ -160,6 +160,10 @@ path = "examples/smooth_serpentine_demo.rs"
 name = "smooth_transitions_demo"
 path = "examples/smooth_transitions_demo.rs"
 
+[[example]]
+name = "configuration_validation_demo"
+path = "examples/configuration_validation_demo.rs"
+
 [dev-dependencies]
 criterion = "0.5.1"
 

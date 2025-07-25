@@ -25,6 +25,7 @@ fn main() {
         transition_length_factor: 0.2,
         transition_amplitude_factor: 0.3,
         transition_smoothness: 20,
+        wave_multiplier: 2.0,
     };
 
     // Use the new smooth serpentine with transitions configuration
