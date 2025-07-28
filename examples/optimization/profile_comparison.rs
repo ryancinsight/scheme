@@ -113,6 +113,7 @@ fn main() {
         optimization_enabled: true,
         target_fill_ratio: 0.92,
         optimization_profile: OptimizationProfile::Fast,
+        ..SerpentineConfig::default()
     };
     let custom_system = create_geometry(
         box_dims,

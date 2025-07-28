@@ -136,10 +136,16 @@ fn main() {
         };
         
         channel.add_metadata(qc_data);
-        
-        let qc = channel.get_metadata::<QualityControlMetadata>().unwrap();
-        println!("   Channel {}: Inspected by {} on {}, Score: {:.2}, Cert: {}", 
-            i, qc.inspector_id, qc.inspection_date, qc.quality_score, qc.certification_level);
+
+        match channel.get_metadata::<QualityControlMetadata>() {
+            Some(qc) => {
+                println!("   Channel {}: Inspected by {} on {}, Score: {:.2}, Cert: {}",
+                    i, qc.inspector_id, qc.inspection_date, qc.quality_score, qc.certification_level);
+            }
+            None => {
+                println!("   Channel {}: Warning - QC metadata could not be retrieved", i);
+            }
+        }
     }
     println!();
 

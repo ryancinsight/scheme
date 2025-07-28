@@ -17,9 +17,7 @@ fn main() {
         gaussian_width_factor: 6.0,
         wave_density_factor: 2.0,
         wave_phase_direction: 0.0,
-        optimization_enabled: false,
-        target_fill_ratio: 0.9,
-        optimization_profile: scheme::config::OptimizationProfile::Balanced,
+        ..SerpentineConfig::default()
     };
 
     // Create optimized serpentine configuration
@@ -32,6 +30,7 @@ fn main() {
         optimization_enabled: true,
         target_fill_ratio: 0.95, // Aggressive optimization
         optimization_profile: scheme::config::OptimizationProfile::Balanced,
+        ..SerpentineConfig::default()
     };
 
     // Test different scenarios

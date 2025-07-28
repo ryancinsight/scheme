@@ -585,7 +585,8 @@ mod tests {
         // Check that channels have performance metadata
         for channel in &system.channels {
             assert!(channel.has_metadata::<PerformanceMetadata>());
-            let perf_data = channel.get_metadata::<PerformanceMetadata>().unwrap();
+            let perf_data = channel.get_metadata::<PerformanceMetadata>()
+                .expect("Performance metadata should be available after creation");
             assert!(perf_data.generation_time_us > 0);
             assert!(perf_data.memory_usage_bytes > 0);
         }

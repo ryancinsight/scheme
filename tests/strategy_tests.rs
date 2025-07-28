@@ -47,7 +47,7 @@ fn test_serpentine_channel_strategy() {
     match channel_type {
         ChannelType::Serpentine { path } => {
             assert!(!path.is_empty(), "Serpentine channel should have a path");
-            assert_eq!(path.len(), 100, "Serpentine path should have 100 points");
+            assert_eq!(path.len(), 200, "Serpentine path should have 200 points (default)");
             
             // Check endpoint alignment
             assert_eq!(path[0], (0.0, 2.0), "First point should match start");
@@ -348,6 +348,7 @@ fn test_serpentine_amplitude_with_neighbors() {
         optimization_enabled: false,
         target_fill_ratio: 0.9,
         optimization_profile: scheme::config::OptimizationProfile::Balanced,
+        ..SerpentineConfig::default()
     };
     let strategy = SerpentineChannelStrategy::new(serpentine_config);
     let geometry_config = GeometryConfig::default();

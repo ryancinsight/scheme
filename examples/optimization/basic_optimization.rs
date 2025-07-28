@@ -78,6 +78,7 @@ fn main() {
         optimization_enabled: true,
         target_fill_ratio: 0.98, // Very aggressive optimization
         optimization_profile: scheme::config::OptimizationProfile::Thorough,
+        ..SerpentineConfig::default()
     };
 
     let custom_system = create_geometry(

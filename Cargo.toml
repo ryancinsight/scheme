@@ -12,157 +12,38 @@ categories = ["science", "visualization"]
 plotters = "0.3.5"
 thiserror = "1.0.56"
 
+# Comprehensive Examples - New consolidated examples
 [[example]]
-name = "single_split"
-path = "examples/schematics/bifurcation/single_split.rs"
+name = "comprehensive_split_patterns"
+path = "examples/comprehensive_split_patterns.rs"
 
 [[example]]
-name = "double_split"
-path = "examples/schematics/bifurcation/double_split.rs"
+name = "comprehensive_serpentine_demo"
+path = "examples/comprehensive_serpentine_demo.rs"
 
 [[example]]
-name = "triple_split"
-path = "examples/schematics/bifurcation/triple_split.rs"
+name = "comprehensive_arc_demo"
+path = "examples/comprehensive_arc_demo.rs"
 
 [[example]]
-name = "four_split"
-path = "examples/schematics/bifurcation/four_split.rs"
-
-[[example]]
-name = "five_split"
-path = "examples/schematics/bifurcation/five_split.rs"
-
-[[example]]
-name = "single_trifurcation"
-path = "examples/schematics/trifurcation/single_trifurcation.rs"
-
-[[example]]
-name = "double_trifurcation"
-path = "examples/schematics/trifurcation/double_trifurcation.rs"
-
-[[example]]
-name = "triple_trifurcation"
-path = "examples/schematics/trifurcation/triple_trifurcation.rs"
-
-[[example]]
-name = "four_trifurcation"
-path = "examples/schematics/trifurcation/four_trifurcation.rs"
-
-[[example]]
-name = "five_trifurcation"
-path = "examples/schematics/trifurcation/five_trifurcation.rs"
-
-[[example]]
-name = "bifurcation_trifurcation"
-path = "examples/schematics/mixed/bifurcation_trifurcation.rs"
-
-[[example]]
-name = "trifurcation_bifurcation"
-path = "examples/schematics/mixed/trifurcation_bifurcation.rs"
-
-[[example]]
-name = "bifurcation_bifurcation_trifurcation"
-path = "examples/schematics/mixed/bifurcation_bifurcation_trifurcation.rs"
-
-[[example]]
-name = "trifurcation_trifurcation_bifurcation"
-path = "examples/schematics/mixed/trifurcation_trifurcation_bifurcation.rs"
-
-[[example]]
-name = "bifurcation_trifurcation_bifurcation"
-path = "examples/schematics/mixed/bifurcation_trifurcation_bifurcation.rs"
-
-[[example]]
-name = "trifurcation_bifurcation_trifurcation"
-path = "examples/schematics/mixed/trifurcation_bifurcation_trifurcation.rs"
-
-[[example]]
-name = "serpentine_bifurcation_single"
-path = "examples/schematics/serpentine/bifurcation_single.rs"
-
-[[example]]
-name = "serpentine_bifurcation_double"
-path = "examples/schematics/serpentine/bifurcation_double.rs"
-
-[[example]]
-name = "serpentine_bifurcation_triple"
-path = "examples/schematics/serpentine/bifurcation_triple.rs"
-
-[[example]]
-name = "serpentine_trifurcation_single"
-path = "examples/schematics/serpentine/trifurcation_single.rs"
-
-[[example]]
-name = "serpentine_trifurcation_double"
-path = "examples/schematics/serpentine/trifurcation_double.rs"
-
-[[example]]
-name = "serpentine_trifurcation_triple"
-path = "examples/schematics/serpentine/trifurcation_triple.rs"
-
-[[example]]
-name = "serpentine_bifurcation_trifurcation"
-path = "examples/schematics/serpentine/bifurcation_trifurcation.rs"
-
-[[example]]
-name = "single_serpentine_channel"
-path = "examples/schematics/serpentine/single_serpentine_channel.rs"
-
-[[example]]
-name = "wave_phase_direction_demo"
-path = "examples/schematics/serpentine/wave_phase_direction_demo.rs"
-
-[[example]]
-name = "bifurcation_arcs"
-path = "examples/schematics/arcs/bifurcation_arcs.rs"
-
-[[example]]
-name = "trifurcation_arcs"
-path = "examples/schematics/arcs/trifurcation_arcs.rs"
-
-[[example]]
-name = "smart_mixed_channels"
-path = "examples/schematics/arcs/smart_mixed_channels.rs"
-
-[[example]]
-name = "variable_curvature"
-path = "examples/schematics/arcs/variable_curvature.rs"
-
-[[example]]
-name = "directional_flow_arcs"
-path = "examples/schematics/arcs/directional_flow_arcs.rs"
-
-[[example]]
-name = "enhanced_directional_arcs"
-path = "examples/schematics/arcs/enhanced_directional_arcs.rs"
-
-[[example]]
-name = "curvature_direction_demo"
-path = "examples/schematics/arcs/curvature_direction_demo.rs"
+name = "comprehensive_arc_collision_prevention_demo"
+path = "examples/comprehensive_arc_collision_prevention_demo.rs"
 
 [[example]]
 name = "svg_demo"
 path = "examples/svg_demo.rs"
 
 [[example]]
-name = "improved_gaussian_demo"
-path = "examples/schematics/serpentine/improved_gaussian_demo.rs"
-
-[[example]]
 name = "unified_generator_demo"
 path = "examples/unified_generator_demo.rs"
 
-[[example]]
-name = "smooth_serpentine_demo"
-path = "examples/smooth_serpentine_demo.rs"
 
-[[example]]
-name = "smooth_transitions_demo"
-path = "examples/smooth_transitions_demo.rs"
 
 [[example]]
 name = "configuration_validation_demo"
 path = "examples/configuration_validation_demo.rs"
+
+
 
 [dev-dependencies]
 criterion = "0.5.1"

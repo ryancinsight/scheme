@@ -6,6 +6,7 @@
 
 use crate::geometry::types::Point2D;
 use crate::config::{GeometryConfig, SerpentineConfig, OptimizationProfile};
+use crate::config_constants::ConstantsRegistry;
 // use std::collections::HashMap; // For future parameter caching
 
 /// Calculate the total path length of a serpentine channel
@@ -197,10 +198,11 @@ fn optimize_fast(
     let min_clearance = geometry_config.wall_clearance;
     let channel_width = geometry_config.channel_width;
 
-    // Reduced parameter search ranges for speed
-    let wavelength_factors = [1.0, 2.0, 3.0, 4.0];
-    let wave_density_factors = [1.0, 2.0, 3.0];
-    let fill_factors = [0.7, 0.8, 0.9];
+    // Get configurable parameter search ranges from constants registry
+    let constants = ConstantsRegistry::new();
+    let wavelength_factors = constants.get_fast_wavelength_factors();
+    let wave_density_factors = constants.get_fast_wave_density_factors();
+    let fill_factors = constants.get_fast_fill_factors();
     
     let mut best_result = OptimizationResult {
         params: OptimizationParams {
@@ -219,17 +221,23 @@ fn optimize_fast(
     let mut iterations = 0;
     
     // Grid search over parameter combinations
-    for &wavelength_factor in &wavelength_factors {
-        for &wave_density_factor in &wave_density_factors {
-            for &fill_factor in &fill_factors {
+    for &wavelength_factor in wavelength_factors {
+        for &wave_density_factor in wave_density_factors {
+            for &fill_factor in fill_factors {
                 iterations += 1;
 
-                // Create test configuration
+                // Create test configuration without cloning the entire config
                 let test_config = SerpentineConfig {
                     wavelength_factor,
                     wave_density_factor,
                     fill_factor,
-                    ..serpentine_config.clone()
+                    gaussian_width_factor: serpentine_config.gaussian_width_factor,
+                    wave_phase_direction: serpentine_config.wave_phase_direction,
+                    wave_shape: serpentine_config.wave_shape,
+                    optimization_enabled: false, // Disable nested optimization
+                    target_fill_ratio: serpentine_config.target_fill_ratio,
+                    optimization_profile: serpentine_config.optimization_profile,
+                    adaptive_config: serpentine_config.adaptive_config,
                 };
 
                 // Generate test path using simplified serpentine generation logic
@@ -656,7 +664,16 @@ fn generate_simplified_serpentine_path(
         let envelope = smooth_envelope * gaussian_envelope;
 
         let wave_phase = std::f64::consts::PI * half_periods * t;
-        let wave_amplitude = amplitude * envelope * wave_phase.sin();
+        // Calculate wave amplitude based on wave shape
+        let wave_value = match serpentine_config.wave_shape {
+            crate::config::WaveShape::Sine => wave_phase.sin(),
+            crate::config::WaveShape::Square => {
+                let sine_value = wave_phase.sin();
+                let sharpness = 5.0; // Controls transition sharpness
+                (sharpness * sine_value).tanh()
+            }
+        };
+        let wave_amplitude = amplitude * envelope * wave_value;
         
         let perp_x = -dy / channel_length;
         let perp_y = dx / channel_length;
@@ -705,14 +722,19 @@ fn calculate_improved_envelope_for_optimization(
     let horizontal_ratio = dx.abs() / node_distance;
 
     // For horizontal channels (middle sections), we want less aggressive tapering
-    let middle_section_factor = if is_horizontal && horizontal_ratio > 0.8 {
-        0.3 + 0.7 * horizontal_ratio
+    let middle_section_factor = if is_horizontal && horizontal_ratio > serpentine_config.adaptive_config.horizontal_ratio_threshold {
+        serpentine_config.adaptive_config.middle_section_amplitude_factor +
+        (1.0 - serpentine_config.adaptive_config.middle_section_amplitude_factor) * horizontal_ratio
     } else {
         1.0
     };
 
     // Distance-based normalization
-    let distance_normalization = (node_distance / 10.0).min(1.0).max(0.1);
+    let distance_normalization = if serpentine_config.adaptive_config.enable_distance_based_scaling {
+        (node_distance / serpentine_config.adaptive_config.node_distance_normalization).min(1.0).max(0.1)
+    } else {
+        1.0 // No distance-based scaling when disabled
+    };
 
     // Calculate effective sigma
     let base_sigma = channel_length / serpentine_config.gaussian_width_factor;
@@ -725,14 +747,15 @@ fn calculate_improved_envelope_for_optimization(
     let gaussian = (-0.5 * ((t - center) / (effective_sigma / channel_length)).powi(2)).exp();
 
     // For middle sections, add a plateau in the center
-    if is_horizontal && horizontal_ratio > 0.8 {
-        let plateau_width = 0.4;
+    if is_horizontal && horizontal_ratio > serpentine_config.adaptive_config.horizontal_ratio_threshold {
+        let plateau_width = serpentine_config.adaptive_config.plateau_width_factor;
         let plateau_start = 0.5 - plateau_width / 2.0;
         let plateau_end = 0.5 + plateau_width / 2.0;
 
         if t >= plateau_start && t <= plateau_end {
             let plateau_factor = 1.0 - ((t - 0.5).abs() / (plateau_width / 2.0));
-            gaussian.max(0.8 + 0.2 * plateau_factor)
+            gaussian.max(serpentine_config.adaptive_config.plateau_amplitude_factor +
+                (1.0 - serpentine_config.adaptive_config.plateau_amplitude_factor) * plateau_factor)
         } else {
             gaussian
         }

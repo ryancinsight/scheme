@@ -17,13 +17,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test 1: Default configurations
     println!("1. Testing Default Configurations");
-    let default_config = GeometryConfig::default();
+    let _default_config = GeometryConfig::default();
     println!("   ✓ Default GeometryConfig created successfully");
-    
-    let default_generation = GeometryGenerationConfig::default();
+
+    let _default_generation = GeometryGenerationConfig::default();
     println!("   ✓ Default GeometryGenerationConfig created successfully");
-    
-    let default_smooth = SmoothTransitionConfig::default();
+
+    let _default_smooth = SmoothTransitionConfig::default();
     println!("   ✓ Default SmoothTransitionConfig created successfully");
 
     // Test 2: Preset configurations
@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let research_config = presets::research_grade();
     println!("   ✓ Research grade preset created successfully");
     
-    let manufacturing_config = presets::manufacturing_grade();
+    let _manufacturing_config = presets::manufacturing_grade();
     println!("   ✓ Manufacturing grade preset created successfully");
     
     let high_quality_config = presets::high_quality_generation();
@@ -47,10 +47,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let custom_generation = GeometryGenerationConfig::new(150, 75, 15, 2.5)?;
     println!("   ✓ Valid custom GeometryGenerationConfig created successfully");
     
-    let custom_geometry = GeometryConfig::with_generation(0.4, 1.2, 0.9, custom_generation)?;
+    let _custom_geometry = GeometryConfig::with_generation(0.4, 1.2, 0.9, custom_generation)?;
     println!("   ✓ Valid custom GeometryConfig created successfully");
-    
-    let custom_smooth = SmoothTransitionConfig::new(0.2, 0.4, 25, 2.0)?;
+
+    let _custom_smooth = SmoothTransitionConfig::new(0.2, 0.4, 25, 2.0)?;
     println!("   ✓ Valid custom SmoothTransitionConfig created successfully");
 
     // Test 4: Configuration validation (error cases)

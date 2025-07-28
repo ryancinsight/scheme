@@ -17,6 +17,9 @@ use crate::geometry::ChannelType;
 use crate::geometry::strategies::SmoothTransitionConfig;
 use crate::error::{ConfigurationError, ConfigurationResult};
 
+// Re-export constants module
+pub use crate::config_constants::*;
+
 /// Configuration constants for geometry validation and defaults
 pub mod constants {
     /// Minimum allowed wall clearance (mm)
@@ -28,7 +31,7 @@ pub mod constants {
 
     // Rendering and geometry generation constants
     /// Default number of points for serpentine path generation
-    pub const DEFAULT_SERPENTINE_POINTS: usize = 100;
+    pub const DEFAULT_SERPENTINE_POINTS: usize = 200;
     /// Minimum number of points for serpentine path generation
     pub const MIN_SERPENTINE_POINTS: usize = 10;
     /// Maximum number of points for serpentine path generation
@@ -54,6 +57,42 @@ pub mod constants {
     pub const MIN_TRANSITION_WAVE_MULTIPLIER: f64 = 0.5;
     /// Maximum wave multiplier for smooth transitions
     pub const MAX_TRANSITION_WAVE_MULTIPLIER: f64 = 10.0;
+
+    // Adaptive serpentine control constants
+    /// Default distance normalization factor for node proximity effects
+    pub const DEFAULT_NODE_DISTANCE_NORMALIZATION: f64 = 10.0;
+    /// Minimum distance normalization factor
+    pub const MIN_NODE_DISTANCE_NORMALIZATION: f64 = 1.0;
+    /// Maximum distance normalization factor
+    pub const MAX_NODE_DISTANCE_NORMALIZATION: f64 = 50.0;
+
+    /// Default plateau width factor for horizontal channels (fraction of channel length)
+    pub const DEFAULT_PLATEAU_WIDTH_FACTOR: f64 = 0.4;
+    /// Minimum plateau width factor
+    pub const MIN_PLATEAU_WIDTH_FACTOR: f64 = 0.1;
+    /// Maximum plateau width factor
+    pub const MAX_PLATEAU_WIDTH_FACTOR: f64 = 0.8;
+
+    /// Default horizontal ratio threshold for middle section detection
+    pub const DEFAULT_HORIZONTAL_RATIO_THRESHOLD: f64 = 0.8;
+    /// Minimum horizontal ratio threshold
+    pub const MIN_HORIZONTAL_RATIO_THRESHOLD: f64 = 0.5;
+    /// Maximum horizontal ratio threshold
+    pub const MAX_HORIZONTAL_RATIO_THRESHOLD: f64 = 0.95;
+
+    /// Default middle section amplitude factor
+    pub const DEFAULT_MIDDLE_SECTION_AMPLITUDE_FACTOR: f64 = 0.3;
+    /// Minimum middle section amplitude factor
+    pub const MIN_MIDDLE_SECTION_AMPLITUDE_FACTOR: f64 = 0.1;
+    /// Maximum middle section amplitude factor
+    pub const MAX_MIDDLE_SECTION_AMPLITUDE_FACTOR: f64 = 1.0;
+
+    /// Default plateau amplitude factor
+    pub const DEFAULT_PLATEAU_AMPLITUDE_FACTOR: f64 = 0.8;
+    /// Minimum plateau amplitude factor
+    pub const MIN_PLATEAU_AMPLITUDE_FACTOR: f64 = 0.5;
+    /// Maximum plateau amplitude factor
+    pub const MAX_PLATEAU_AMPLITUDE_FACTOR: f64 = 1.0;
 
     /// Minimum allowed channel width (mm)
     pub const MIN_CHANNEL_WIDTH: f64 = 0.01;
@@ -111,6 +150,20 @@ pub mod constants {
     /// Default smoothness for arc channels
     pub const DEFAULT_SMOOTHNESS: usize = 20;
 
+    /// Minimum separation distance between arc channels (mm)
+    pub const MIN_SEPARATION_DISTANCE: f64 = 0.1;
+    /// Maximum separation distance between arc channels (mm)
+    pub const MAX_SEPARATION_DISTANCE: f64 = 10.0;
+    /// Default minimum separation distance between arc channels (mm)
+    pub const DEFAULT_MIN_SEPARATION_DISTANCE: f64 = 1.0;
+
+    /// Minimum curvature reduction factor for collision prevention
+    pub const MIN_CURVATURE_REDUCTION: f64 = 0.1;
+    /// Maximum curvature reduction factor for collision prevention
+    pub const MAX_CURVATURE_REDUCTION_LIMIT: f64 = 1.0;
+    /// Default maximum curvature reduction factor
+    pub const DEFAULT_MAX_CURVATURE_REDUCTION: f64 = 0.5;
+
     /// Strategy thresholds for smart channel type selection
     pub mod strategy_thresholds {
         /// Threshold for long horizontal channels (fraction of box width)
@@ -123,6 +176,181 @@ pub mod constants {
         pub const ANGLED_CHANNEL_SLOPE_THRESHOLD: f64 = 0.1;
         /// Default middle zone fraction for mixed by position
         pub const DEFAULT_MIDDLE_ZONE_FRACTION: f64 = 0.4;
+    }
+}
+
+/// Configuration for adaptive serpentine channel behavior
+///
+/// This configuration controls how serpentine channels adapt their wave properties
+/// based on geometric constraints such as distance from nodes, walls, and other channels.
+///
+/// # Examples
+///
+/// ```rust
+/// use scheme::config::AdaptiveSerpentineConfig;
+///
+/// // Create with default adaptive behavior
+/// let config = AdaptiveSerpentineConfig::default();
+///
+/// // Create with custom adaptive parameters
+/// let custom_config = AdaptiveSerpentineConfig {
+///     node_distance_normalization: 15.0,
+///     plateau_width_factor: 0.5,
+///     horizontal_ratio_threshold: 0.75,
+///     middle_section_amplitude_factor: 0.4,
+///     plateau_amplitude_factor: 0.9,
+///     enable_distance_based_scaling: true,
+///     enable_wall_proximity_scaling: true,
+///     enable_neighbor_avoidance: true,
+/// };
+/// ```
+#[derive(Clone, Copy, Debug)]
+pub struct AdaptiveSerpentineConfig {
+    /// Distance normalization factor for node proximity effects (1.0-50.0)
+    pub node_distance_normalization: f64,
+    /// Plateau width factor for horizontal channels (0.1-0.8, fraction of channel length)
+    pub plateau_width_factor: f64,
+    /// Horizontal ratio threshold for middle section detection (0.5-0.95)
+    pub horizontal_ratio_threshold: f64,
+    /// Amplitude factor for middle sections of horizontal channels (0.1-1.0)
+    pub middle_section_amplitude_factor: f64,
+    /// Amplitude factor for plateau regions (0.5-1.0)
+    pub plateau_amplitude_factor: f64,
+    /// Enable distance-based amplitude scaling near nodes
+    pub enable_distance_based_scaling: bool,
+    /// Enable amplitude scaling based on wall proximity
+    pub enable_wall_proximity_scaling: bool,
+    /// Enable amplitude reduction for neighbor channel avoidance
+    pub enable_neighbor_avoidance: bool,
+}
+
+impl Default for AdaptiveSerpentineConfig {
+    fn default() -> Self {
+        Self {
+            node_distance_normalization: constants::DEFAULT_NODE_DISTANCE_NORMALIZATION,
+            plateau_width_factor: constants::DEFAULT_PLATEAU_WIDTH_FACTOR,
+            horizontal_ratio_threshold: constants::DEFAULT_HORIZONTAL_RATIO_THRESHOLD,
+            middle_section_amplitude_factor: constants::DEFAULT_MIDDLE_SECTION_AMPLITUDE_FACTOR,
+            plateau_amplitude_factor: constants::DEFAULT_PLATEAU_AMPLITUDE_FACTOR,
+            enable_distance_based_scaling: true,
+            enable_wall_proximity_scaling: true,
+            enable_neighbor_avoidance: true,
+        }
+    }
+}
+
+impl AdaptiveSerpentineConfig {
+    /// Create a new adaptive serpentine configuration with validation
+    pub fn new(
+        node_distance_normalization: f64,
+        plateau_width_factor: f64,
+        horizontal_ratio_threshold: f64,
+        middle_section_amplitude_factor: f64,
+        plateau_amplitude_factor: f64,
+        enable_distance_based_scaling: bool,
+        enable_wall_proximity_scaling: bool,
+        enable_neighbor_avoidance: bool,
+    ) -> ConfigurationResult<Self> {
+        let config = Self {
+            node_distance_normalization,
+            plateau_width_factor,
+            horizontal_ratio_threshold,
+            middle_section_amplitude_factor,
+            plateau_amplitude_factor,
+            enable_distance_based_scaling,
+            enable_wall_proximity_scaling,
+            enable_neighbor_avoidance,
+        };
+        config.validate()?;
+        Ok(config)
+    }
+
+    /// Validate the configuration parameters
+    pub fn validate(&self) -> ConfigurationResult<()> {
+        if self.node_distance_normalization < constants::MIN_NODE_DISTANCE_NORMALIZATION
+            || self.node_distance_normalization > constants::MAX_NODE_DISTANCE_NORMALIZATION {
+            return Err(ConfigurationError::invalid_generation_config(
+                "node_distance_normalization",
+                &format!("Must be between {} and {}",
+                    constants::MIN_NODE_DISTANCE_NORMALIZATION, constants::MAX_NODE_DISTANCE_NORMALIZATION)
+            ));
+        }
+
+        if self.plateau_width_factor < constants::MIN_PLATEAU_WIDTH_FACTOR
+            || self.plateau_width_factor > constants::MAX_PLATEAU_WIDTH_FACTOR {
+            return Err(ConfigurationError::invalid_generation_config(
+                "plateau_width_factor",
+                &format!("Must be between {} and {}",
+                    constants::MIN_PLATEAU_WIDTH_FACTOR, constants::MAX_PLATEAU_WIDTH_FACTOR)
+            ));
+        }
+
+        if self.horizontal_ratio_threshold < constants::MIN_HORIZONTAL_RATIO_THRESHOLD
+            || self.horizontal_ratio_threshold > constants::MAX_HORIZONTAL_RATIO_THRESHOLD {
+            return Err(ConfigurationError::invalid_generation_config(
+                "horizontal_ratio_threshold",
+                &format!("Must be between {} and {}",
+                    constants::MIN_HORIZONTAL_RATIO_THRESHOLD, constants::MAX_HORIZONTAL_RATIO_THRESHOLD)
+            ));
+        }
+
+        if self.middle_section_amplitude_factor < constants::MIN_MIDDLE_SECTION_AMPLITUDE_FACTOR
+            || self.middle_section_amplitude_factor > constants::MAX_MIDDLE_SECTION_AMPLITUDE_FACTOR {
+            return Err(ConfigurationError::invalid_generation_config(
+                "middle_section_amplitude_factor",
+                &format!("Must be between {} and {}",
+                    constants::MIN_MIDDLE_SECTION_AMPLITUDE_FACTOR, constants::MAX_MIDDLE_SECTION_AMPLITUDE_FACTOR)
+            ));
+        }
+
+        if self.plateau_amplitude_factor < constants::MIN_PLATEAU_AMPLITUDE_FACTOR
+            || self.plateau_amplitude_factor > constants::MAX_PLATEAU_AMPLITUDE_FACTOR {
+            return Err(ConfigurationError::invalid_generation_config(
+                "plateau_amplitude_factor",
+                &format!("Must be between {} and {}",
+                    constants::MIN_PLATEAU_AMPLITUDE_FACTOR, constants::MAX_PLATEAU_AMPLITUDE_FACTOR)
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Create a conservative configuration with minimal adaptive behavior
+    pub fn conservative() -> Self {
+        Self {
+            node_distance_normalization: 20.0,
+            plateau_width_factor: 0.2,
+            horizontal_ratio_threshold: 0.9,
+            middle_section_amplitude_factor: 0.2,
+            plateau_amplitude_factor: 0.6,
+            enable_distance_based_scaling: true,
+            enable_wall_proximity_scaling: true,
+            enable_neighbor_avoidance: true,
+        }
+    }
+
+    /// Create an aggressive configuration with strong adaptive behavior
+    pub fn aggressive() -> Self {
+        Self {
+            node_distance_normalization: 5.0,
+            plateau_width_factor: 0.6,
+            horizontal_ratio_threshold: 0.6,
+            middle_section_amplitude_factor: 0.6,
+            plateau_amplitude_factor: 0.95,
+            enable_distance_based_scaling: true,
+            enable_wall_proximity_scaling: true,
+            enable_neighbor_avoidance: true,
+        }
+    }
+
+    /// Create a configuration with adaptive behavior disabled
+    pub fn disabled() -> Self {
+        Self {
+            enable_distance_based_scaling: false,
+            enable_wall_proximity_scaling: false,
+            enable_neighbor_avoidance: false,
+            ..Self::default()
+        }
     }
 }
 
@@ -353,7 +581,7 @@ impl Default for GeometryConfig {
 }
 
 /// Optimization profile for serpentine channel optimization
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum OptimizationProfile {
     /// Fast optimization with limited parameter exploration (5-10x slower)
     Fast,
@@ -361,6 +589,21 @@ pub enum OptimizationProfile {
     Balanced,
     /// Thorough optimization with extensive exploration (100-500x slower)
     Thorough,
+}
+
+/// Wave shape types for serpentine channels
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum WaveShape {
+    /// Smooth sine wave (default) - provides natural, flowing curves
+    Sine,
+    /// Square wave - provides sharp, angular transitions
+    Square,
+}
+
+impl Default for WaveShape {
+    fn default() -> Self {
+        WaveShape::Sine
+    }
 }
 
 /// Configuration for serpentine (S-shaped) channels
@@ -376,12 +619,16 @@ pub struct SerpentineConfig {
     pub wave_density_factor: f64,
     /// Controls wave phase direction for symmetry: -1.0=force inward, 1.0=force outward, 0.0=auto-symmetric
     pub wave_phase_direction: f64,
+    /// Wave shape type - sine for smooth curves, square for angular transitions
+    pub wave_shape: WaveShape,
     /// Enable length optimization algorithm (default: false for backward compatibility)
     pub optimization_enabled: bool,
     /// Target fill ratio for optimization - fraction of maximum possible length to achieve (0.8 to 0.99)
     pub target_fill_ratio: f64,
     /// Optimization profile controlling speed vs quality tradeoff
     pub optimization_profile: OptimizationProfile,
+    /// Adaptive behavior configuration for dynamic channel properties
+    pub adaptive_config: AdaptiveSerpentineConfig,
 }
 
 impl SerpentineConfig {
@@ -398,9 +645,11 @@ impl SerpentineConfig {
             gaussian_width_factor,
             wave_density_factor,
             wave_phase_direction: 0.0, // Auto-determine for perfect symmetry
+            wave_shape: WaveShape::default(), // Default to sine wave
             optimization_enabled: false, // Disabled by default for backward compatibility
             target_fill_ratio: 0.9, // Default target for optimization
             optimization_profile: OptimizationProfile::Balanced, // Default profile
+            adaptive_config: AdaptiveSerpentineConfig::default(), // Default adaptive behavior
         };
         config.validate()?;
         Ok(config)
@@ -420,9 +669,11 @@ impl SerpentineConfig {
             gaussian_width_factor,
             wave_density_factor,
             wave_phase_direction: 0.0, // Auto-determine for perfect symmetry
+            wave_shape: WaveShape::default(), // Default to sine wave
             optimization_enabled: true,
             target_fill_ratio,
             optimization_profile: OptimizationProfile::Balanced, // Default profile
+            adaptive_config: AdaptiveSerpentineConfig::default(), // Default adaptive behavior
         };
         config.validate()?;
         Ok(config)
@@ -443,9 +694,11 @@ impl SerpentineConfig {
             gaussian_width_factor,
             wave_density_factor,
             wave_phase_direction: 0.0, // Auto-determine for perfect symmetry
+            wave_shape: WaveShape::default(), // Default to sine wave
             optimization_enabled: true,
             target_fill_ratio,
             optimization_profile,
+            adaptive_config: AdaptiveSerpentineConfig::default(), // Default adaptive behavior
         };
         config.validate()?;
         Ok(config)
@@ -465,9 +718,11 @@ impl SerpentineConfig {
             gaussian_width_factor,
             wave_density_factor,
             wave_phase_direction,
+            wave_shape: WaveShape::default(), // Default to sine wave
             optimization_enabled: false, // Disabled by default for backward compatibility
             target_fill_ratio: 0.9, // Default target for optimization
             optimization_profile: OptimizationProfile::Balanced, // Default profile
+            adaptive_config: AdaptiveSerpentineConfig::default(), // Default adaptive behavior
         };
         config.validate()?;
         Ok(config)
@@ -525,6 +780,24 @@ impl SerpentineConfig {
 
         Ok(())
     }
+
+    /// Convert this configuration to use square wave shape
+    pub fn with_square_wave(mut self) -> Self {
+        self.wave_shape = WaveShape::Square;
+        self
+    }
+
+    /// Convert this configuration to use sine wave shape
+    pub fn with_sine_wave(mut self) -> Self {
+        self.wave_shape = WaveShape::Sine;
+        self
+    }
+
+    /// Convert this configuration to use the specified wave shape
+    pub fn with_wave_shape(mut self, wave_shape: WaveShape) -> Self {
+        self.wave_shape = wave_shape;
+        self
+    }
 }
 
 /// Configuration for arc (curved) channels
@@ -536,6 +809,14 @@ pub struct ArcConfig {
     pub smoothness: usize,
     /// Controls the direction of arc curvature: 1.0 = outward, -1.0 = inward, 0.0 = auto
     pub curvature_direction: f64,
+    /// Minimum separation distance between arc channels (0.1 to 10.0)
+    pub min_separation_distance: f64,
+    /// Enable collision detection and prevention (default: true)
+    pub enable_collision_prevention: bool,
+    /// Maximum allowed curvature reduction factor for collision prevention (0.1 to 1.0)
+    pub max_curvature_reduction: f64,
+    /// Enable adaptive curvature based on neighbor proximity (default: true)
+    pub enable_adaptive_curvature: bool,
 }
 
 impl ArcConfig {
@@ -545,6 +826,10 @@ impl ArcConfig {
             curvature_factor,
             smoothness,
             curvature_direction: 0.0, // Auto-determine direction
+            min_separation_distance: constants::DEFAULT_MIN_SEPARATION_DISTANCE,
+            enable_collision_prevention: true,
+            max_curvature_reduction: constants::DEFAULT_MAX_CURVATURE_REDUCTION,
+            enable_adaptive_curvature: true,
         };
         config.validate()?;
         Ok(config)
@@ -556,6 +841,33 @@ impl ArcConfig {
             curvature_factor,
             smoothness,
             curvature_direction,
+            min_separation_distance: constants::DEFAULT_MIN_SEPARATION_DISTANCE,
+            enable_collision_prevention: true,
+            max_curvature_reduction: constants::DEFAULT_MAX_CURVATURE_REDUCTION,
+            enable_adaptive_curvature: true,
+        };
+        config.validate()?;
+        Ok(config)
+    }
+
+    /// Create a new arc configuration with full proximity control
+    pub fn new_with_proximity_control(
+        curvature_factor: f64,
+        smoothness: usize,
+        curvature_direction: f64,
+        min_separation_distance: f64,
+        enable_collision_prevention: bool,
+        max_curvature_reduction: f64,
+        enable_adaptive_curvature: bool,
+    ) -> ConfigurationResult<Self> {
+        let config = Self {
+            curvature_factor,
+            smoothness,
+            curvature_direction,
+            min_separation_distance,
+            enable_collision_prevention,
+            max_curvature_reduction,
+            enable_adaptive_curvature,
         };
         config.validate()?;
         Ok(config)
@@ -587,6 +899,22 @@ impl ArcConfig {
             });
         }
 
+        if self.min_separation_distance < constants::MIN_SEPARATION_DISTANCE || self.min_separation_distance > constants::MAX_SEPARATION_DISTANCE {
+            return Err(ConfigurationError::invalid_arc_config(
+                "min_separation_distance",
+                self.min_separation_distance,
+                &format!("Must be between {} and {}", constants::MIN_SEPARATION_DISTANCE, constants::MAX_SEPARATION_DISTANCE)
+            ));
+        }
+
+        if self.max_curvature_reduction < constants::MIN_CURVATURE_REDUCTION || self.max_curvature_reduction > constants::MAX_CURVATURE_REDUCTION_LIMIT {
+            return Err(ConfigurationError::invalid_arc_config(
+                "max_curvature_reduction",
+                self.max_curvature_reduction,
+                &format!("Must be between {} and {}", constants::MIN_CURVATURE_REDUCTION, constants::MAX_CURVATURE_REDUCTION_LIMIT)
+            ));
+        }
+
         Ok(())
     }
 }
@@ -599,9 +927,11 @@ impl Default for SerpentineConfig {
             gaussian_width_factor: constants::DEFAULT_GAUSSIAN_WIDTH_FACTOR,
             wave_density_factor: constants::DEFAULT_WAVE_DENSITY_FACTOR,
             wave_phase_direction: 0.0, // Auto-determine for perfect symmetry
+            wave_shape: WaveShape::default(), // Default to sine wave
             optimization_enabled: false, // Disabled by default for backward compatibility
             target_fill_ratio: 0.9, // Default target for optimization
             optimization_profile: OptimizationProfile::Balanced, // Default profile
+            adaptive_config: AdaptiveSerpentineConfig::default(), // Default adaptive behavior
         }
     }
 }
@@ -612,6 +942,10 @@ impl Default for ArcConfig {
             curvature_factor: constants::DEFAULT_CURVATURE_FACTOR,
             smoothness: constants::DEFAULT_SMOOTHNESS,
             curvature_direction: 0.0, // Auto-determine direction
+            min_separation_distance: constants::DEFAULT_MIN_SEPARATION_DISTANCE,
+            enable_collision_prevention: true,
+            max_curvature_reduction: constants::DEFAULT_MAX_CURVATURE_REDUCTION,
+            enable_adaptive_curvature: true,
         }
     }
 }
@@ -721,9 +1055,11 @@ pub mod presets {
             gaussian_width_factor: 8.0,
             wave_density_factor: 4.0,
             wave_phase_direction: 0.0, // Auto-symmetric
+            wave_shape: WaveShape::default(), // Default to sine wave
             optimization_enabled: false,
             target_fill_ratio: 0.9,
             optimization_profile: OptimizationProfile::Balanced,
+            adaptive_config: AdaptiveSerpentineConfig::aggressive(), // High-density needs aggressive adaptation
         }
     }
 
@@ -735,9 +1071,11 @@ pub mod presets {
             gaussian_width_factor: 10.0,
             wave_density_factor: 1.5,
             wave_phase_direction: 0.0, // Auto-symmetric
+            wave_shape: WaveShape::default(), // Default to sine wave
             optimization_enabled: false,
             target_fill_ratio: 0.9,
             optimization_profile: OptimizationProfile::Balanced,
+            adaptive_config: AdaptiveSerpentineConfig::conservative(), // Smooth channels need conservative adaptation
         }
     }
 
@@ -749,9 +1087,11 @@ pub mod presets {
             gaussian_width_factor: 6.0,
             wave_density_factor: 2.0,
             wave_phase_direction: -1.0, // Force inward phase
+            wave_shape: WaveShape::default(), // Default to sine wave
             optimization_enabled: false,
             target_fill_ratio: 0.9,
             optimization_profile: OptimizationProfile::Balanced,
+            adaptive_config: AdaptiveSerpentineConfig::default(), // Default adaptive behavior
         }
     }
 
@@ -763,9 +1103,11 @@ pub mod presets {
             gaussian_width_factor: 6.0,
             wave_density_factor: 2.0,
             wave_phase_direction: 1.0, // Force outward phase
+            wave_shape: WaveShape::default(), // Default to sine wave
             optimization_enabled: false,
             target_fill_ratio: 0.9,
             optimization_profile: OptimizationProfile::Balanced,
+            adaptive_config: AdaptiveSerpentineConfig::default(), // Default adaptive behavior
         }
     }
 
@@ -777,9 +1119,11 @@ pub mod presets {
             gaussian_width_factor: 6.0,
             wave_density_factor: 2.0,
             wave_phase_direction: 0.0, // Auto-symmetric
+            wave_shape: WaveShape::default(), // Default to sine wave
             optimization_enabled: true,
             target_fill_ratio: 0.95, // Aggressive optimization target
             optimization_profile: OptimizationProfile::Balanced,
+            adaptive_config: AdaptiveSerpentineConfig::default(), // Default adaptive behavior
         }
     }
 
@@ -791,9 +1135,11 @@ pub mod presets {
             gaussian_width_factor: 6.0,
             wave_density_factor: 2.0,
             wave_phase_direction: 0.0, // Auto-symmetric
+            wave_shape: WaveShape::default(), // Default to sine wave
             optimization_enabled: true,
             target_fill_ratio: 0.9, // Moderate optimization target
             optimization_profile: OptimizationProfile::Fast,
+            adaptive_config: AdaptiveSerpentineConfig::default(), // Default adaptive behavior
         }
     }
 
@@ -805,9 +1151,27 @@ pub mod presets {
             gaussian_width_factor: 6.0,
             wave_density_factor: 2.0,
             wave_phase_direction: 0.0, // Auto-symmetric
+            wave_shape: WaveShape::default(), // Default to sine wave
             optimization_enabled: true,
             target_fill_ratio: 0.98, // Very aggressive optimization target
             optimization_profile: OptimizationProfile::Thorough,
+            adaptive_config: AdaptiveSerpentineConfig::default(), // Default adaptive behavior
+        }
+    }
+
+    /// Preset for square wave serpentine channels (angular transitions)
+    pub fn square_wave_serpentine() -> SerpentineConfig {
+        SerpentineConfig {
+            fill_factor: 0.8,
+            wavelength_factor: 3.0,
+            gaussian_width_factor: 6.0,
+            wave_density_factor: 2.0,
+            wave_phase_direction: 0.0, // Auto-symmetric
+            wave_shape: WaveShape::Square, // Sharp square wave transitions
+            optimization_enabled: false,
+            target_fill_ratio: 0.9,
+            optimization_profile: OptimizationProfile::Balanced,
+            adaptive_config: AdaptiveSerpentineConfig::default(),
         }
     }
 
@@ -817,6 +1181,10 @@ pub mod presets {
             curvature_factor: 0.2,
             smoothness: 30,
             curvature_direction: 0.0, // Auto-determine
+            min_separation_distance: constants::DEFAULT_MIN_SEPARATION_DISTANCE,
+            enable_collision_prevention: true,
+            max_curvature_reduction: constants::DEFAULT_MAX_CURVATURE_REDUCTION,
+            enable_adaptive_curvature: true,
         }
     }
 
@@ -866,6 +1234,10 @@ pub mod presets {
             curvature_factor: 0.8,
             smoothness: 50,
             curvature_direction: 0.0, // Auto-determine
+            min_separation_distance: constants::DEFAULT_MIN_SEPARATION_DISTANCE,
+            enable_collision_prevention: true,
+            max_curvature_reduction: constants::DEFAULT_MAX_CURVATURE_REDUCTION,
+            enable_adaptive_curvature: true,
         }
     }
 
@@ -875,6 +1247,10 @@ pub mod presets {
             curvature_factor: 0.5,
             smoothness: 30,
             curvature_direction: -1.0, // Force inward curvature
+            min_separation_distance: constants::DEFAULT_MIN_SEPARATION_DISTANCE,
+            enable_collision_prevention: true,
+            max_curvature_reduction: constants::DEFAULT_MAX_CURVATURE_REDUCTION,
+            enable_adaptive_curvature: true,
         }
     }
 
@@ -884,6 +1260,49 @@ pub mod presets {
             curvature_factor: 0.5,
             smoothness: 30,
             curvature_direction: 1.0, // Force outward curvature
+            min_separation_distance: constants::DEFAULT_MIN_SEPARATION_DISTANCE,
+            enable_collision_prevention: true,
+            max_curvature_reduction: constants::DEFAULT_MAX_CURVATURE_REDUCTION,
+            enable_adaptive_curvature: true,
+        }
+    }
+
+    /// Preset for safe high-curvature arcs with collision prevention
+    pub fn safe_high_curvature_arcs() -> ArcConfig {
+        ArcConfig {
+            curvature_factor: 1.5, // High curvature but with safety measures
+            smoothness: 50,
+            curvature_direction: 0.0, // Auto-determine
+            min_separation_distance: 2.0, // Increased separation for safety
+            enable_collision_prevention: true,
+            max_curvature_reduction: 0.3, // Allow significant reduction if needed
+            enable_adaptive_curvature: true,
+        }
+    }
+
+    /// Preset for maximum curvature with aggressive collision prevention
+    pub fn maximum_safe_arcs() -> ArcConfig {
+        ArcConfig {
+            curvature_factor: 2.0, // Maximum curvature
+            smoothness: 100,
+            curvature_direction: 0.0, // Auto-determine
+            min_separation_distance: 3.0, // Maximum separation for safety
+            enable_collision_prevention: true,
+            max_curvature_reduction: 0.1, // Allow maximum reduction if needed
+            enable_adaptive_curvature: true,
+        }
+    }
+
+    /// Preset for dense layouts with conservative curvature
+    pub fn dense_layout_arcs() -> ArcConfig {
+        ArcConfig {
+            curvature_factor: 0.3, // Conservative curvature
+            smoothness: 25,
+            curvature_direction: 0.0, // Auto-determine
+            min_separation_distance: 0.5, // Tight separation for dense layouts
+            enable_collision_prevention: true,
+            max_curvature_reduction: 0.7, // Allow significant reduction
+            enable_adaptive_curvature: true,
         }
     }
 }

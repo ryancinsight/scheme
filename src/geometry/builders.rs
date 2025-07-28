@@ -146,7 +146,9 @@ impl NodeExt for Node {
         if self.metadata.is_none() {
             self.metadata = Some(MetadataContainer::new());
         }
-        self.metadata.as_mut().unwrap().insert(metadata);
+        if let Some(container) = self.metadata.as_mut() {
+            container.insert(metadata);
+        }
     }
     
     fn has_metadata<T: Metadata + 'static>(&self) -> bool {
@@ -196,7 +198,9 @@ impl ChannelExt for Channel {
         if self.metadata.is_none() {
             self.metadata = Some(MetadataContainer::new());
         }
-        self.metadata.as_mut().unwrap().insert(metadata);
+        if let Some(container) = self.metadata.as_mut() {
+            container.insert(metadata);
+        }
     }
     
     fn has_metadata<T: Metadata + 'static>(&self) -> bool {

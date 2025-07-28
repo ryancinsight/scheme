@@ -46,6 +46,8 @@ let config = ChannelTypeConfig::AllSerpentine(SerpentineConfig {
     wavelength_factor: 4.0,     // Multiplier for channel width to determine wavelength
     gaussian_width_factor: 6.0, // Controls width of Gaussian envelope (sigma = length / gaussian_width_factor)
     wave_density_factor: 1.5,   // Controls how many waves appear relative to channel length (higher = more waves)
+    wave_shape: WaveShape::Sine, // Wave shape: Sine (smooth curves) or Square (angular transitions)
+    ..SerpentineConfig::default()
 });
 
 // Mixed channels based on position (default)
@@ -110,6 +112,61 @@ let optimized_config = presets::optimized_serpentine();
 - **Fast Profile**: Limited parameter exploration (5-10x slower than standard)
 - **Balanced Profile**: Moderate exploration using Nelder-Mead algorithm (20-50x slower)
 - **Thorough Profile**: Extensive multi-start optimization (100-500x slower)
+
+### Wave Shape Control
+
+Serpentine channels now support different wave shapes for varied design aesthetics:
+
+- **Sine Wave (Default)**: Smooth, natural flowing curves that provide gentle transitions
+- **Square Wave**: Angular transitions with smooth corners for more geometric designs
+
+```rust
+use scheme::config::{SerpentineConfig, WaveShape};
+
+// Smooth sine wave serpentines (default)
+let sine_config = SerpentineConfig::default().with_sine_wave();
+
+// Angular square wave serpentines
+let square_config = SerpentineConfig::default().with_square_wave();
+
+// Or specify directly
+let custom_config = SerpentineConfig {
+    wave_shape: WaveShape::Square,
+    ..SerpentineConfig::default()
+};
+```
+
+Both wave shapes maintain:
+
+- Perfect bilateral mirror symmetry
+- Smooth rendering with 200+ points per channel (configurable)
+- Proper envelope functions for smooth endpoint transitions
+- Full compatibility with optimization and adaptive features
+
+## 🛡️ **Arc Channel Collision Prevention**
+
+The library includes advanced collision prevention for arc channels to eliminate overlaps in high-curvature scenarios:
+
+### **Proximity Detection**
+
+- **Real-time overlap detection** during arc path generation
+- **Configurable minimum separation distance** between channels
+- **Neighbor proximity analysis** for adaptive behavior
+- **Density-based estimation** when neighbor information is unavailable
+
+### **Adaptive Curvature Control**
+
+- **Automatic curvature reduction** when overlaps are detected
+- **Intelligent path adjustment** that maintains visual appeal
+- **Configurable reduction limits** to preserve design intent
+- **Progressive reduction algorithms** for optimal balance
+
+### **Safety Configuration**
+
+- **Collision prevention toggle** - can be enabled/disabled per configuration
+- **Maximum curvature reduction limits** to prevent over-correction
+- **Separation distance validation** with configurable thresholds
+- **Safety presets** for common scenarios (dense layouts, high curvature, etc.)
 
 ## Extensible Metadata System
 
@@ -178,47 +235,60 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Examples
 
-The library includes comprehensive examples using the modern API:
+The library includes comprehensive examples organized by functionality:
 
-### Bifurcation Patterns
-- `single_split` - Basic bifurcation
-- `double_split` - Two-level bifurcation
-- `triple_split` - Three-level bifurcation
-- `four_split` - Four-level bifurcation
-- `five_split` - Five-level bifurcation
+### 🚀 **Comprehensive Demos** (Recommended Starting Point)
 
-### Trifurcation Patterns
-- `single_trifurcation` - Basic trifurcation
-- `double_trifurcation` - Two-level trifurcation
-- `triple_trifurcation` - Three-level trifurcation
-- `four_trifurcation` - Four-level trifurcation
-- `five_trifurcation` - Five-level trifurcation
+- `comprehensive_split_patterns` - All split patterns (bifurcation, trifurcation, mixed)
+- `comprehensive_serpentine_demo` - Complete serpentine channel showcase with wave shapes, phase control, and optimization
+- `comprehensive_arc_demo` - Complete arc channel demonstration with curvature control and smart selection
+- `comprehensive_arc_collision_prevention_demo` - Arc collision prevention and proximity detection showcase
 
-### Mixed Patterns
-- `bifurcation_trifurcation` - Bifurcation followed by trifurcation
-- `trifurcation_bifurcation` - Trifurcation followed by bifurcation
-- `bifurcation_bifurcation_trifurcation` - Complex three-stage pattern
-- `bifurcation_trifurcation_bifurcation` - Alternating pattern
-- `trifurcation_bifurcation_trifurcation` - Alternating pattern
-- `trifurcation_trifurcation_bifurcation` - Complex three-stage pattern
+### 🔧 **Specialized Examples**
 
-### Channel Type Examples
-- `serpentine_demo` - Demonstrates serpentine channels in a bifurcation pattern
-- `mixed_channel_types` - Shows mixed straight and serpentine channels
-- `channel_type_demo` - Comprehensive demonstration of all channel type configurations
-- `dynamic_serpentine_demo` - Advanced demonstration of precise endpoint alignment and custom configurations
-- `gaussian_tone_burst_demo` - Demonstrates Gaussian envelope effects with different width factors
-- `improved_gaussian_demo` - Shows the new distance-based normalization and middle section detection
-- `unified_generator_demo` - Demonstrates the unified generator API with optional metadata support
+- `configuration_validation_demo` - Configuration validation and error handling examples
+- `svg_demo` - SVG output format demonstration
+- `unified_generator_demo` - Unified generator API with metadata support
 
-### Optimization Examples
-- `basic_optimization` - Simple demonstration of serpentine length optimization
-- `length_comparison` - Comprehensive comparison of standard vs optimized channel lengths
-- `profile_comparison` - Comparison of Fast, Balanced, and Thorough optimization profiles
+### 🚀 **Optimization & Performance**
 
-### Metadata Examples
+- `optimization/basic_optimization` - Basic optimization demonstration
+- `optimization/length_comparison` - Length optimization comparison
+- `optimization/profile_comparison` - Optimization profile comparison
+
+### 📊 **Metadata & Advanced Features**
+
+- `metadata/basic_metadata_usage` - Basic metadata system usage
+- `metadata/custom_metadata_types` - Custom metadata type implementation
+
+### 📁 **Organized Output Structure**
+
+All examples generate outputs in organized directories:
+
+- `outputs/split_patterns/` - Split pattern visualizations
+- `outputs/serpentine/` - Serpentine channel outputs with wave shapes, phase directions, configurations, and optimization
+- `outputs/arcs/` - Arc channel visualizations with curvature, smoothness, directions, and collision prevention
+- `outputs/mixed/` - Mixed channel configurations and smart selection
+- `outputs/optimization/` - Optimization demonstrations and comparisons
+- `outputs/metadata/` - Metadata system examples
+- `outputs/svg/` - SVG format outputs
+- `outputs/unified/` - Unified generator examples
+- `outputs/configuration_validation/` - Configuration validation examples
+
+### 🧪 **Metadata System**
+
 - `basic_metadata_usage` - Introduction to the extensible metadata system
-- `custom_metadata_types` - Creating and using custom metadata types for specific domains
+- `custom_metadata_types` - Creating custom metadata types for specific domains
+
+### 🎯 **Quick Start Recommendation**
+
+For new users, start with the **Comprehensive Demos** section:
+
+1. Run `cargo run --example comprehensive_split_patterns`
+2. Run `cargo run --example comprehensive_serpentine_demo`
+3. Run `cargo run --example comprehensive_arc_demo`
+
+These will generate organized outputs in the `outputs/` directory showcasing all major features.
 
 ## Performance Benchmarking
 

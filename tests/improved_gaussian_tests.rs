@@ -14,9 +14,7 @@ fn test_improved_gaussian_envelope_distance_normalization() {
         gaussian_width_factor: 4.0, // Small factor for pronounced envelope effect
         wave_density_factor: 2.0,
         wave_phase_direction: 0.0,
-        optimization_enabled: false,
-        target_fill_ratio: 0.9,
-        optimization_profile: scheme::config::OptimizationProfile::Balanced,
+        ..SerpentineConfig::default()
     };
 
     // Test with different box dimensions to create channels of different lengths
@@ -62,9 +60,7 @@ fn test_middle_section_detection() {
         gaussian_width_factor: 4.0,
         wave_density_factor: 2.0,
         wave_phase_direction: 0.0,
-        optimization_enabled: false,
-        target_fill_ratio: 0.9,
-        optimization_profile: scheme::config::OptimizationProfile::Balanced,
+        ..SerpentineConfig::default()
     };
 
     // Create a system with multiple levels to get both directional changes and middle sections
@@ -107,9 +103,7 @@ fn test_gaussian_envelope_preserves_symmetry() {
         gaussian_width_factor: 6.0,
         wave_density_factor: 2.0,
         wave_phase_direction: 0.0, // Auto-symmetric
-        optimization_enabled: false,
-        target_fill_ratio: 0.9,
-        optimization_profile: scheme::config::OptimizationProfile::Balanced,
+        ..SerpentineConfig::default()
     };
 
     // Create a symmetric bifurcation pattern
@@ -154,6 +148,7 @@ fn test_improved_envelope_with_optimization() {
         optimization_enabled: true, // Enable optimization
         target_fill_ratio: 0.95,
         optimization_profile: scheme::config::OptimizationProfile::Fast, // Use fast for testing
+        ..SerpentineConfig::default()
     };
 
     // Test that optimization works with the improved Gaussian envelope

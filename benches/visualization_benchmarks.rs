@@ -190,6 +190,7 @@ fn bench_serpentine_complexity(c: &mut Criterion) {
             optimization_enabled: false,
             optimization_profile: scheme::config::OptimizationProfile::Balanced,
             target_fill_ratio: 0.9,
+            ..SerpentineConfig::default()
         }),
         ("medium_density", SerpentineConfig {
             fill_factor: 0.7,
@@ -200,6 +201,7 @@ fn bench_serpentine_complexity(c: &mut Criterion) {
             optimization_enabled: false,
             optimization_profile: scheme::config::OptimizationProfile::Balanced,
             target_fill_ratio: 0.9,
+            ..SerpentineConfig::default()
         }),
         ("high_density", SerpentineConfig {
             fill_factor: 0.9,
@@ -210,6 +212,7 @@ fn bench_serpentine_complexity(c: &mut Criterion) {
             optimization_enabled: false,
             optimization_profile: scheme::config::OptimizationProfile::Balanced,
             target_fill_ratio: 0.9,
+            ..SerpentineConfig::default()
         }),
     ];
     

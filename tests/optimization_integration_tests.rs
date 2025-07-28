@@ -20,6 +20,7 @@ fn test_optimization_profiles() {
         optimization_enabled: true,
         target_fill_ratio: 0.9,
         optimization_profile: OptimizationProfile::Fast,
+        ..SerpentineConfig::default()
     };
 
     let fast_system = create_geometry(
@@ -39,6 +40,7 @@ fn test_optimization_profiles() {
         optimization_enabled: true,
         target_fill_ratio: 0.9,
         optimization_profile: OptimizationProfile::Balanced,
+        ..SerpentineConfig::default()
     };
 
     let balanced_system = create_geometry(
@@ -58,6 +60,7 @@ fn test_optimization_profiles() {
         optimization_enabled: true,
         target_fill_ratio: 0.9,
         optimization_profile: OptimizationProfile::Thorough,
+        ..SerpentineConfig::default()
     };
 
     let thorough_system = create_geometry(
@@ -103,6 +106,7 @@ fn test_optimization_parameter_validation() {
             optimization_enabled: true,
             target_fill_ratio: 0.9,
             optimization_profile: profile,
+            ..SerpentineConfig::default()
         };
         
         assert!(config.validate().is_ok(), "Valid optimization config should pass validation");

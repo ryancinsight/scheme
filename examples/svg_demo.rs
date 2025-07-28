@@ -3,8 +3,12 @@ use scheme::{
     config::{GeometryConfig, ChannelTypeConfig, SerpentineConfig},
     visualizations::schematic::plot_geometry,
 };
+use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create organized output directory
+    fs::create_dir_all("outputs/svg")?;
+
     println!("SVG Output Demo - Generating microfluidic schematics in SVG format");
     
     let config = GeometryConfig::default();
@@ -18,9 +22,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     
     // Generate SVG output
-    plot_geometry(&simple_system, "outputs/simple_bifurcation.svg")?;
-    println!("✓ Generated simple_bifurcation.svg");
-    
+    plot_geometry(&simple_system, "outputs/svg/simple_bifurcation.svg")?;
+    println!("✓ Generated outputs/svg/simple_bifurcation.svg");
+
     // Create a complex pattern with serpentine channels
     let complex_system = create_geometry(
         (400.0, 200.0),
@@ -28,10 +32,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &config,
         &ChannelTypeConfig::AllSerpentine(SerpentineConfig::default()),
     );
-    
+
     // Generate SVG output
-    plot_geometry(&complex_system, "outputs/complex_serpentine.svg")?;
-    println!("✓ Generated complex_serpentine.svg");
+    plot_geometry(&complex_system, "outputs/svg/complex_serpentine.svg")?;
+    println!("✓ Generated outputs/svg/complex_serpentine.svg");
     
     // Create a mixed pattern with smart channel selection
     let smart_system = create_geometry(
@@ -45,9 +49,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     
     // Generate both PNG and SVG for comparison
-    plot_geometry(&smart_system, "outputs/smart_mixed.png")?;
-    plot_geometry(&smart_system, "outputs/smart_mixed.svg")?;
-    println!("✓ Generated smart_mixed.png and smart_mixed.svg for comparison");
+    plot_geometry(&smart_system, "outputs/svg/smart_mixed.png")?;
+    plot_geometry(&smart_system, "outputs/svg/smart_mixed.svg")?;
+    println!("✓ Generated outputs/svg/smart_mixed.png and outputs/svg/smart_mixed.svg for comparison");
     
     println!("\nSVG Demo completed successfully!");
     println!("SVG files are vector graphics that can be scaled without quality loss.");

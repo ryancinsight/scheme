@@ -7,6 +7,153 @@
 use crate::geometry::{ChannelType, Point2D};
 use crate::geometry::optimization::optimize_serpentine_parameters;
 use crate::config::{ArcConfig, ChannelTypeConfig, GeometryConfig, SerpentineConfig, constants};
+use crate::config_constants::ConstantsRegistry;
+use crate::state_management::bilateral_symmetry::{
+    SymmetryContext, BilateralSymmetryConfig, BilateralPhaseDirectionCalculator, ChannelPositionClassification
+};
+
+/// Context object for channel generation to reduce parameter coupling
+///
+/// This struct groups related parameters together, following the
+/// Parameter Object pattern to improve method signatures and reduce coupling.
+#[derive(Debug, Clone)]
+pub struct ChannelGenerationContext<'a> {
+    /// Geometry configuration parameters
+    pub geometry_config: &'a GeometryConfig,
+    /// Bounding box dimensions (width, height)
+    pub box_dims: (f64, f64),
+    /// Total number of branches in the system
+    pub total_branches: usize,
+    /// Information about neighboring channels for collision avoidance
+    pub neighbor_info: Option<&'a [f64]>,
+}
+
+impl<'a> ChannelGenerationContext<'a> {
+    /// Create a new channel generation context
+    pub fn new(
+        geometry_config: &'a GeometryConfig,
+        box_dims: (f64, f64),
+        total_branches: usize,
+        neighbor_info: Option<&'a [f64]>,
+    ) -> Self {
+        Self {
+            geometry_config,
+            box_dims,
+            total_branches,
+            neighbor_info,
+        }
+    }
+}
+
+/// Trait for calculating envelope functions for serpentine channels
+///
+/// This trait abstracts envelope calculation logic to eliminate code duplication
+/// and provide a clean interface for different envelope types.
+pub trait EnvelopeCalculator {
+    /// Calculate envelope value at parameter t (0.0 to 1.0)
+    fn calculate_envelope(&self, t: f64, context: &EnvelopeContext) -> f64;
+}
+
+/// Context for envelope calculations
+#[derive(Debug, Clone)]
+pub struct EnvelopeContext {
+    /// Channel length
+    pub channel_length: f64,
+    /// Channel direction vector (dx, dy)
+    pub direction: (f64, f64),
+    /// Distance to nearest node
+    pub node_distance: f64,
+    /// Adaptive configuration
+    pub adaptive_config: crate::config::AdaptiveSerpentineConfig,
+    /// Gaussian width factor
+    pub gaussian_width_factor: f64,
+}
+
+/// Smooth endpoint envelope calculator
+///
+/// Provides smooth transitions at channel endpoints using smoothstep function.
+pub struct SmoothEndpointEnvelopeCalculator;
+
+impl EnvelopeCalculator for SmoothEndpointEnvelopeCalculator {
+    fn calculate_envelope(&self, t: f64, _context: &EnvelopeContext) -> f64 {
+        // Smooth endpoint envelope using smoothstep function
+        // This ensures zero amplitude and zero derivative at endpoints
+        let smoothstep = |x: f64| x * x * (3.0 - 2.0 * x);
+
+        // Create smooth transitions at both ends
+        let start_transition = if t < 0.1 {
+            smoothstep(t / 0.1)
+        } else { 1.0 };
+
+        let end_transition = if t > 0.9 {
+            smoothstep((1.0 - t) / 0.1)
+        } else { 1.0 };
+
+        start_transition * end_transition
+    }
+}
+
+/// Gaussian envelope calculator with adaptive behavior
+///
+/// Provides Gaussian-shaped envelope with adaptive parameters based on
+/// channel characteristics and proximity to nodes/walls.
+pub struct AdaptiveGaussianEnvelopeCalculator;
+
+impl EnvelopeCalculator for AdaptiveGaussianEnvelopeCalculator {
+    fn calculate_envelope(&self, t: f64, context: &EnvelopeContext) -> f64 {
+        let dx = context.direction.0;
+        let dy = context.direction.1;
+        let channel_length = context.channel_length;
+        let node_distance = context.node_distance;
+
+        // Determine if this is primarily a horizontal channel
+        let is_horizontal = dx.abs() > dy.abs();
+        let horizontal_ratio = dx.abs() / node_distance;
+
+        // For horizontal channels (middle sections), we want less aggressive tapering
+        let middle_section_factor = if is_horizontal && horizontal_ratio > context.adaptive_config.horizontal_ratio_threshold {
+            context.adaptive_config.middle_section_amplitude_factor +
+            (1.0 - context.adaptive_config.middle_section_amplitude_factor) * horizontal_ratio
+        } else {
+            1.0
+        };
+
+        // Distance-based normalization
+        let distance_normalization = if context.adaptive_config.enable_distance_based_scaling {
+            (node_distance / context.adaptive_config.node_distance_normalization).min(1.0).max(0.1)
+        } else {
+            1.0
+        };
+
+        // Calculate effective sigma based on distance and section type
+        let base_sigma = channel_length / context.gaussian_width_factor;
+        let effective_sigma = base_sigma * distance_normalization * middle_section_factor;
+
+        // Center the envelope
+        let center = 0.5;
+
+        // Calculate Gaussian envelope
+        let gaussian = (-0.5 * ((t - center) / (effective_sigma / channel_length)).powi(2)).exp();
+
+        // For middle sections, add a plateau in the center to maintain full amplitude
+        if is_horizontal && horizontal_ratio > context.adaptive_config.horizontal_ratio_threshold {
+            let plateau_width = context.adaptive_config.plateau_width_factor;
+            let plateau_start = 0.5 - plateau_width / 2.0;
+            let plateau_end = 0.5 + plateau_width / 2.0;
+
+            if t >= plateau_start && t <= plateau_end {
+                // In the plateau region, blend between Gaussian and full amplitude
+                let plateau_factor = 1.0 - ((t - 0.5).abs() / (plateau_width / 2.0));
+                gaussian.max(context.adaptive_config.plateau_amplitude_factor +
+                    (1.0 - context.adaptive_config.plateau_amplitude_factor) * plateau_factor)
+            } else {
+                gaussian
+            }
+        } else {
+            gaussian
+        }
+    }
+}
 
 /// Strategy trait for generating different types of channels
 /// 
@@ -331,41 +478,51 @@ impl ChannelTypeStrategy for SerpentineChannelStrategy {
         total_branches: usize,
         neighbor_info: Option<&[f64]>,
     ) -> ChannelType {
+        let context = ChannelGenerationContext::new(
+            geometry_config,
+            box_dims,
+            total_branches,
+            neighbor_info,
+        );
+
         let path = if self.config.optimization_enabled {
-            self.generate_optimized_serpentine_path(
-                from,
-                to,
-                geometry_config,
-                box_dims,
-                total_branches,
-                neighbor_info,
-            )
+            self.generate_optimized_serpentine_path(from, to, &context)
         } else {
-            self.generate_serpentine_path(
-                from,
-                to,
-                geometry_config,
-                box_dims,
-                total_branches,
-                neighbor_info,
-            )
+            self.generate_serpentine_path(from, to, &context)
         };
         ChannelType::Serpentine { path }
     }
 }
 
 impl SerpentineChannelStrategy {
+    /// Calculate wave amplitude based on wave shape and phase
+    fn calculate_wave_amplitude(&self, wave_phase: f64, phase_offset: f64) -> f64 {
+        use crate::config::WaveShape;
+
+        match self.config.wave_shape {
+            WaveShape::Sine => {
+                // Smooth sine wave
+                (wave_phase + phase_offset).sin()
+            }
+            WaveShape::Square => {
+                // Square wave with smooth transitions
+                let sine_value = (wave_phase + phase_offset).sin();
+                // Use tanh to create smooth square wave transitions
+                let constants = ConstantsRegistry::new();
+                let sharpness = constants.get_square_wave_sharpness(); // Configurable transition sharpness
+                (sharpness * sine_value).tanh()
+            }
+        }
+    }
+
     /// Generate a serpentine path between two points
     fn generate_serpentine_path(
         &self,
         p1: Point2D,
         p2: Point2D,
-        geometry_config: &GeometryConfig,
-        box_dims: (f64, f64),
-        total_branches: usize,
-        neighbor_info: Option<&[f64]>,
+        context: &ChannelGenerationContext,
     ) -> Vec<Point2D> {
-        let n_points = geometry_config.generation.serpentine_points;
+        let n_points = context.geometry_config.generation.serpentine_points;
         let mut path = Vec::with_capacity(n_points);
 
         let dx = p2.0 - p1.0;
@@ -373,10 +530,11 @@ impl SerpentineChannelStrategy {
         let channel_length = (dx * dx + dy * dy).sqrt();
         let _angle = dy.atan2(dx);
 
-        let _branch_factor = (total_branches as f64).powf(0.75).max(1.0);
+        let constants = ConstantsRegistry::new();
+        let _branch_factor = (context.total_branches as f64).powf(constants.get_branch_factor_exponent()).max(1.0);
 
         // Calculate number of periods to ensure complete wave cycles
-        let base_wavelength = self.config.wavelength_factor * geometry_config.channel_width;
+        let base_wavelength = self.config.wavelength_factor * context.geometry_config.channel_width;
 
         // For smooth endpoint transitions, use half-periods to ensure zero amplitude at endpoints
         // Scale the number of periods with channel length and ensure minimum complete cycles
@@ -386,17 +544,10 @@ impl SerpentineChannelStrategy {
         let half_periods = (base_periods * 2.0).round().max(1.0);
 
         // Calculate amplitude with neighbor awareness
-        let amplitude = self.calculate_amplitude(
-            p1,
-            p2,
-            geometry_config,
-            box_dims,
-            total_branches,
-            neighbor_info,
-        );
+        let amplitude = self.calculate_amplitude(p1, p2, context);
 
         // Calculate wave phase direction for perfect mirror symmetry
-        let phase_direction = self.calculate_wave_phase_direction(p1, p2, box_dims);
+        let phase_direction = self.calculate_wave_phase_direction(p1, p2, context.box_dims);
 
         // Gaussian envelope parameters
         // Note: sigma and center are now calculated in the improved envelope function
@@ -408,11 +559,20 @@ impl SerpentineChannelStrategy {
             let base_x = p1.0 + t * dx;
             let base_y = p1.1 + t * dy;
 
-            // Use smooth endpoint envelope for seamless transitions
-            let smooth_envelope = self.calculate_smooth_endpoint_envelope(t);
+            // Use envelope calculators for clean separation of concerns
+            let smooth_calculator = SmoothEndpointEnvelopeCalculator;
+            let gaussian_calculator = AdaptiveGaussianEnvelopeCalculator;
 
-            // Optionally combine with improved Gaussian envelope for middle sections
-            let gaussian_envelope = self.calculate_improved_envelope(t, channel_length, dx, dy);
+            let envelope_context = EnvelopeContext {
+                channel_length,
+                direction: (dx, dy),
+                node_distance: channel_length, // Simplified for now
+                adaptive_config: self.config.adaptive_config,
+                gaussian_width_factor: self.config.gaussian_width_factor,
+            };
+
+            let smooth_envelope = smooth_calculator.calculate_envelope(t, &envelope_context);
+            let gaussian_envelope = gaussian_calculator.calculate_envelope(t, &envelope_context);
             let envelope = smooth_envelope * gaussian_envelope;
 
             // Serpentine wave with half-periods to ensure zero amplitude at endpoints
@@ -426,7 +586,7 @@ impl SerpentineChannelStrategy {
                 std::f64::consts::PI // Negative phase: start with inverted sine wave (π phase)
             };
 
-            let wave_amplitude = amplitude * envelope * (wave_phase + phase_offset).sin();
+            let wave_amplitude = amplitude * envelope * self.calculate_wave_amplitude(wave_phase, phase_offset);
 
             // Apply perpendicular offset
             let perp_x = -dy / channel_length;
@@ -454,39 +614,35 @@ impl SerpentineChannelStrategy {
         &self,
         p1: Point2D,
         p2: Point2D,
-        geometry_config: &GeometryConfig,
-        box_dims: (f64, f64),
-        total_branches: usize,
-        neighbor_info: Option<&[f64]>,
+        context: &ChannelGenerationContext,
     ) -> Vec<Point2D> {
         // Run optimization to find best parameters
         let optimization_result = optimize_serpentine_parameters(
             p1,
             p2,
-            geometry_config,
+            context.geometry_config,
             &self.config,
-            box_dims,
-            neighbor_info,
+            context.box_dims,
+            context.neighbor_info,
         );
 
-        // Create optimized configuration
+        // Create optimized configuration without full clone
         let optimized_config = SerpentineConfig {
             wavelength_factor: optimization_result.params.wavelength_factor,
             wave_density_factor: optimization_result.params.wave_density_factor,
             fill_factor: optimization_result.params.fill_factor,
-            ..self.config
+            gaussian_width_factor: self.config.gaussian_width_factor,
+            wave_phase_direction: self.config.wave_phase_direction,
+            wave_shape: self.config.wave_shape,
+            optimization_enabled: false, // Disable nested optimization
+            target_fill_ratio: self.config.target_fill_ratio,
+            optimization_profile: self.config.optimization_profile,
+            adaptive_config: self.config.adaptive_config,
         };
 
-        // Generate path with optimized parameters
-        let strategy = SerpentineChannelStrategy::new(optimized_config);
-        strategy.generate_serpentine_path(
-            p1,
-            p2,
-            geometry_config,
-            box_dims,
-            total_branches,
-            neighbor_info,
-        )
+        // Generate path with optimized parameters using temporary strategy
+        let temp_strategy = SerpentineChannelStrategy::new(optimized_config);
+        temp_strategy.generate_serpentine_path(p1, p2, context)
     }
 
     /// Generate serpentine path for optimization purposes (public interface)
@@ -499,105 +655,39 @@ impl SerpentineChannelStrategy {
         total_branches: usize,
         neighbor_info: Option<&[f64]>,
     ) -> Vec<Point2D> {
-        self.generate_serpentine_path(
-            p1,
-            p2,
+        let context = ChannelGenerationContext::new(
             geometry_config,
             box_dims,
             total_branches,
             neighbor_info,
-        )
+        );
+        self.generate_serpentine_path(p1, p2, &context)
     }
 
-    /// Calculate smooth endpoint envelope for seamless transitions
-    ///
-    /// This function creates a smooth envelope that ensures zero amplitude and
-    /// zero derivative at the endpoints, eliminating sharp transitions.
-    /// Uses smoothstep function: t²(3-2t) for C¹ continuity.
-    fn calculate_smooth_endpoint_envelope(&self, t: f64) -> f64 {
-        // Smoothstep function: t²(3-2t)
-        // This has the properties:
-        // - f(0) = 0, f(1) = 1
-        // - f'(0) = 0, f'(1) = 0 (zero derivative at endpoints)
-        // - Smooth C¹ continuity
-        t * t * (3.0 - 2.0 * t)
-    }
 
-    /// Calculate improved Gaussian envelope with distance-based normalization
-    ///
-    /// This function creates a more sophisticated envelope that:
-    /// 1. Normalizes based on the distance between start and end nodes
-    /// 2. Provides special handling for the middle section where there's no directional change
-    /// 3. Reduces amplitude near nodes to prevent intersection while maintaining full amplitude in the middle
-    fn calculate_improved_envelope(&self, t: f64, channel_length: f64, dx: f64, dy: f64) -> f64 {
-        // Calculate the actual distance between nodes (not just channel length)
-        let node_distance = (dx * dx + dy * dy).sqrt();
-
-        // Determine if this is primarily a horizontal channel (middle section logic)
-        let is_horizontal = dx.abs() > dy.abs();
-        let horizontal_ratio = dx.abs() / node_distance;
-
-        // For horizontal channels (middle sections), we want less aggressive tapering
-        // since there's no directional change at the nodes
-        let middle_section_factor = if is_horizontal && horizontal_ratio > 0.8 {
-            // This is a middle section - reduce the Gaussian effect
-            0.3 + 0.7 * horizontal_ratio // Scale from 0.3 to 1.0 based on how horizontal it is
-        } else {
-            // This is a directional change section - use full Gaussian effect
-            1.0
-        };
-
-        // Distance-based normalization: shorter channels need more aggressive tapering
-        let distance_normalization = (node_distance / 10.0).min(1.0).max(0.1);
-
-        // Calculate effective sigma based on distance and section type
-        let base_sigma = channel_length / self.config.gaussian_width_factor;
-        let effective_sigma = base_sigma * distance_normalization * middle_section_factor;
-
-        // Center the envelope
-        let center = 0.5; // Center in parameter space (t = 0.5)
-
-        // Calculate Gaussian envelope
-        let gaussian = (-0.5 * ((t - center) / (effective_sigma / channel_length)).powi(2)).exp();
-
-        // For middle sections, add a plateau in the center to maintain full amplitude
-        if is_horizontal && horizontal_ratio > 0.8 {
-            let plateau_width = 0.4; // 40% of the channel has full amplitude
-            let plateau_start = 0.5 - plateau_width / 2.0;
-            let plateau_end = 0.5 + plateau_width / 2.0;
-
-            if t >= plateau_start && t <= plateau_end {
-                // In the plateau region, blend between Gaussian and full amplitude
-                let plateau_factor = 1.0 - ((t - 0.5).abs() / (plateau_width / 2.0));
-                gaussian.max(0.8 + 0.2 * plateau_factor)
-            } else {
-                gaussian
-            }
-        } else {
-            gaussian
-        }
-    }
 
     /// Calculate appropriate amplitude for serpentine channels
     fn calculate_amplitude(
         &self,
         p1: Point2D,
         p2: Point2D,
-        geometry_config: &GeometryConfig,
-        box_dims: (f64, f64),
-        total_branches: usize,
-        neighbor_info: Option<&[f64]>,
+        context: &ChannelGenerationContext,
     ) -> f64 {
         let channel_center_y = (p1.1 + p2.1) / 2.0;
-        let box_height = box_dims.1;
+        let box_height = context.box_dims.1;
 
         // Calculate safe amplitude based on neighbors or box boundaries
-        let max_safe_amplitude = if let Some(neighbors) = neighbor_info {
+        let max_safe_amplitude = if let Some(neighbors) = context.neighbor_info {
             if neighbors.is_empty() {
                 // No neighbors, use box boundaries
                 let distance_to_top = box_height - channel_center_y;
                 let distance_to_bottom = channel_center_y;
-                distance_to_top.min(distance_to_bottom) * 0.8
+                let wall_distance = distance_to_top.min(distance_to_bottom);
+                if self.config.adaptive_config.enable_wall_proximity_scaling {
+                    wall_distance * 0.8
+                } else {
+                    wall_distance * self.config.fill_factor
+                }
             } else {
                 // Find closest neighbor distances
                 let mut min_distance = f64::INFINITY;
@@ -607,31 +697,75 @@ impl SerpentineChannelStrategy {
                         min_distance = min_distance.min(distance);
                     }
                 }
-                (min_distance / 2.0) * 0.8
+                let neighbor_amplitude = if self.config.adaptive_config.enable_neighbor_avoidance {
+                    (min_distance / 2.0) * 0.8 // Conservative neighbor avoidance
+                } else {
+                    (min_distance / 2.0) * self.config.fill_factor // Use fill factor
+                };
+                neighbor_amplitude
             }
         } else {
             // Fallback to box boundaries
             let distance_to_top = box_height - channel_center_y;
             let distance_to_bottom = channel_center_y;
-            distance_to_top.min(distance_to_bottom) * 0.8
+            let wall_distance = distance_to_top.min(distance_to_bottom);
+            if self.config.adaptive_config.enable_wall_proximity_scaling {
+                wall_distance * 0.8
+            } else {
+                wall_distance * self.config.fill_factor
+            }
         };
 
         // Apply branch factor and fill factor
-        let branch_factor = (total_branches as f64).powf(0.75).max(1.0);
+        let constants = ConstantsRegistry::new();
+        let branch_factor = (context.total_branches as f64).powf(constants.get_branch_factor_exponent()).max(1.0);
         let fill_factor = self.config.fill_factor / branch_factor;
-        let enhanced_fill_factor = (fill_factor * 1.5).min(0.95);
+        let enhanced_fill_factor = (fill_factor * constants.get_fill_factor_enhancement()).min(0.95);
         
-        (max_safe_amplitude * enhanced_fill_factor).max(geometry_config.channel_width * 0.5)
+        (max_safe_amplitude * enhanced_fill_factor).max(context.geometry_config.channel_width * 0.5)
     }
 
-    /// Calculate wave phase direction for perfect bilateral mirror symmetry
+    /// Calculate wave phase direction for perfect bilateral mirror symmetry using enhanced symmetry system
     fn calculate_wave_phase_direction(&self, p1: Point2D, p2: Point2D, box_dims: (f64, f64)) -> f64 {
         // If wave phase direction is explicitly set, use it
         if self.config.wave_phase_direction.abs() > 1e-6 {
             return self.config.wave_phase_direction;
         }
 
-        // Auto-determine phase direction for perfect bilateral mirror symmetry
+        // Use enhanced bilateral symmetry system for perfect symmetry
+        let symmetry_config = BilateralSymmetryConfig {
+            enable_vertical_symmetry: true,
+            enable_horizontal_symmetry: true,
+            symmetry_tolerance: 1e-6,
+            enable_adaptive_symmetry: true,
+            enforcement_strength: 1.0,
+        };
+
+        // Create a temporary channel generation context for symmetry calculation
+        let temp_context = crate::state_management::adaptive::ChannelGenerationContext::new(
+            GeometryConfig::default(), // This will be replaced with actual config in full integration
+            box_dims,
+            4, // Default branch count
+            None,
+        ).with_endpoints(p1, p2);
+
+        // Create symmetry context
+        let symmetry_context = SymmetryContext::new(temp_context, symmetry_config);
+
+        // Use bilateral phase direction calculator for perfect symmetry
+        let phase_calculator = BilateralPhaseDirectionCalculator::default();
+
+        match phase_calculator.calculate_phase_direction(&symmetry_context) {
+            Ok(phase_direction) => phase_direction,
+            Err(_) => {
+                // Fallback to legacy calculation if enhanced system fails
+                self.calculate_legacy_phase_direction(p1, p2, box_dims)
+            }
+        }
+    }
+
+    /// Legacy phase direction calculation for fallback
+    fn calculate_legacy_phase_direction(&self, p1: Point2D, p2: Point2D, box_dims: (f64, f64)) -> f64 {
         let dx = p2.0 - p1.0;
         let dy = p2.1 - p1.1;
         let box_center_x = box_dims.0 / 2.0;
@@ -719,15 +853,42 @@ impl ChannelTypeStrategy for ArcChannelStrategy {
         to: Point2D,
         _geometry_config: &GeometryConfig,
         box_dims: (f64, f64),
-        _total_branches: usize,
-        _neighbor_info: Option<&[f64]>,
+        total_branches: usize,
+        neighbor_info: Option<&[f64]>,
     ) -> ChannelType {
-        let path = self.generate_arc_path(from, to, box_dims);
+        let path = self.generate_arc_path_with_collision_prevention(from, to, box_dims, total_branches, neighbor_info);
         ChannelType::Arc { path }
     }
 }
 
 impl ArcChannelStrategy {
+    /// Generate a smooth arc path with collision prevention
+    fn generate_arc_path_with_collision_prevention(
+        &self,
+        p1: Point2D,
+        p2: Point2D,
+        box_dims: (f64, f64),
+        total_branches: usize,
+        neighbor_info: Option<&[f64]>,
+    ) -> Vec<Point2D> {
+        if !self.config.enable_collision_prevention {
+            return self.generate_arc_path(p1, p2, box_dims);
+        }
+
+        // Calculate adaptive curvature factor based on proximity to neighbors
+        let adaptive_curvature = self.calculate_adaptive_curvature(p1, p2, box_dims, total_branches, neighbor_info);
+
+        // Create temporary config with adaptive curvature
+        let adaptive_config = ArcConfig {
+            curvature_factor: adaptive_curvature,
+            ..self.config
+        };
+
+        // Generate path with adaptive curvature
+        let temp_strategy = ArcChannelStrategy::new(adaptive_config);
+        temp_strategy.generate_arc_path(p1, p2, box_dims)
+    }
+
     /// Generate a smooth arc path between two points
     fn generate_arc_path(&self, p1: Point2D, p2: Point2D, box_dims: (f64, f64)) -> Vec<Point2D> {
         let mut path = Vec::with_capacity(self.config.smoothness + 2);
@@ -842,6 +1003,105 @@ impl ArcChannelStrategy {
                 }
             }
         }
+    }
+
+    /// Calculate adaptive curvature factor based on neighbor proximity
+    fn calculate_adaptive_curvature(
+        &self,
+        p1: Point2D,
+        p2: Point2D,
+        box_dims: (f64, f64),
+        total_branches: usize,
+        neighbor_info: Option<&[f64]>,
+    ) -> f64 {
+        if !self.config.enable_adaptive_curvature {
+            return self.config.curvature_factor;
+        }
+
+        let dx = p2.0 - p1.0;
+        let dy = p2.1 - p1.1;
+        let channel_length = (dx * dx + dy * dy).sqrt();
+
+        // Base curvature factor
+        let mut adaptive_factor = self.config.curvature_factor;
+
+        // Calculate proximity-based reduction
+        let proximity_reduction = self.calculate_proximity_reduction(p1, p2, box_dims, total_branches, neighbor_info);
+
+        // Apply proximity reduction with limits
+        adaptive_factor *= (1.0 - proximity_reduction).max(self.config.max_curvature_reduction);
+
+        // Additional safety check for very short channels
+        if channel_length < self.config.min_separation_distance * 2.0 {
+            adaptive_factor *= 0.5; // Reduce curvature for very short channels
+        }
+
+        // Ensure we don't go below minimum curvature
+        adaptive_factor.max(0.1)
+    }
+
+    /// Calculate proximity-based curvature reduction factor
+    fn calculate_proximity_reduction(
+        &self,
+        p1: Point2D,
+        p2: Point2D,
+        box_dims: (f64, f64),
+        total_branches: usize,
+        neighbor_info: Option<&[f64]>,
+    ) -> f64 {
+        // If we don't have neighbor information, use branch density estimation
+        let neighbor_distances = match neighbor_info {
+            Some(distances) => distances,
+            None => return self.estimate_density_based_reduction(p1, p2, box_dims, total_branches),
+        };
+        let mut max_reduction: f64 = 0.0;
+
+        // Calculate channel midpoint for proximity calculations
+        let _mid_x = (p1.0 + p2.0) / 2.0;
+        let _mid_y = (p1.1 + p2.1) / 2.0;
+
+        // Check proximity to each neighbor
+        for &neighbor_distance in neighbor_distances {
+            if neighbor_distance < self.config.min_separation_distance {
+                // Calculate reduction factor based on how close the neighbor is
+                let proximity_ratio = neighbor_distance / self.config.min_separation_distance;
+                let reduction = (1.0 - proximity_ratio).max(0.0);
+                max_reduction = max_reduction.max(reduction);
+            }
+        }
+
+        // Apply maximum reduction limit
+        max_reduction.min(1.0 - self.config.max_curvature_reduction)
+    }
+
+    /// Estimate curvature reduction based on branch density
+    fn estimate_density_based_reduction(
+        &self,
+        p1: Point2D,
+        p2: Point2D,
+        box_dims: (f64, f64),
+        total_branches: usize,
+    ) -> f64 {
+        // Calculate effective area per branch
+        let box_area = box_dims.0 * box_dims.1;
+        let area_per_branch = box_area / total_branches as f64;
+
+        // Calculate channel length
+        let dx = p2.0 - p1.0;
+        let dy = p2.1 - p1.1;
+        let channel_length = (dx * dx + dy * dy).sqrt();
+
+        // Estimate potential arc area
+        let potential_arc_area = channel_length * channel_length * self.config.curvature_factor;
+
+        // If potential arc area is large relative to available space, reduce curvature
+        if potential_arc_area > area_per_branch * 0.5 {
+            let density_ratio = potential_arc_area / (area_per_branch * 0.5);
+            let reduction = (density_ratio - 1.0).max(0.0).min(0.8);
+            return reduction;
+        }
+
+        0.0 // No reduction needed
     }
 }
 

@@ -66,6 +66,7 @@
 //!     optimization_enabled: false,
 //!     target_fill_ratio: 0.9,
 //!     optimization_profile: scheme::config::OptimizationProfile::Balanced,
+//!     ..SerpentineConfig::default()
 //! };
 //!
 //! let system = create_geometry(
@@ -79,7 +80,14 @@
 pub mod geometry;
 pub mod visualizations;
 pub mod config;
+pub mod config_constants;
+pub mod codebase_cleanup;
 pub mod error;
+pub mod state_management;
 
 pub use visualizations::schematic::plot_geometry;
 pub use error::{SchemeError, SchemeResult, GeometryError, ConfigurationError, VisualizationError, StrategyError};
+pub use state_management::{
+    ParameterRegistry, ParameterManager, ConfigurableParameter, ParameterConstraints,
+    StateManagementError, ParameterError, StateManagementResult, ConstraintError,
+};

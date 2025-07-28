@@ -70,12 +70,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Has performance metadata: {}", has_perf_metadata);
     
     if has_perf_metadata {
-        let perf_data = metadata_system.channels[0].get_metadata::<PerformanceMetadata>().unwrap();
-        println!("   Generation time: {}μs, Memory: {} bytes, Path points: {}", 
-            perf_data.generation_time_us,
-            perf_data.memory_usage_bytes,
-            perf_data.path_points_count
-        );
+        match metadata_system.channels[0].get_metadata::<PerformanceMetadata>() {
+            Some(perf_data) => {
+                println!("   Generation time: {}μs, Memory: {} bytes, Path points: {}",
+                    perf_data.generation_time_us,
+                    perf_data.memory_usage_bytes,
+                    perf_data.path_points_count
+                );
+            }
+            None => {
+                println!("   Warning: Performance metadata exists but could not be retrieved");
+            }
+        }
     }
     println!();
 

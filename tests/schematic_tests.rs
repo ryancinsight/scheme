@@ -80,7 +80,9 @@ fn test_schematic_visualization() {
     );
 
     let output_dir = "test_outputs";
-    fs::create_dir_all(output_dir).expect("Should create output directory");
+    fs::create_dir_all(output_dir).unwrap_or_else(|_| {
+        // If directory creation fails, the test will fail anyway when trying to write the file
+    });
     
     let plot_path = format!("{}/test_schematic.png", output_dir);
     
@@ -194,6 +196,7 @@ fn test_serpentine_path_endpoints() {
         optimization_enabled: false,
         target_fill_ratio: 0.9,
         optimization_profile: scheme::config::OptimizationProfile::Balanced,
+        ..SerpentineConfig::default()
     };
     
     let system = create_geometry(
@@ -245,6 +248,7 @@ fn test_serpentine_path_smoothness() {
         optimization_enabled: false,
         target_fill_ratio: 0.9,
         optimization_profile: scheme::config::OptimizationProfile::Balanced,
+        ..SerpentineConfig::default()
     };
     
     let system = create_geometry(
@@ -286,9 +290,7 @@ fn test_serpentine_wave_symmetry() {
         gaussian_width_factor: 6.0,
         wave_density_factor: 2.0,
         wave_phase_direction: 0.0, // Auto-symmetric
-        optimization_enabled: false,
-        target_fill_ratio: 0.9,
-        optimization_profile: scheme::config::OptimizationProfile::Balanced,
+        ..SerpentineConfig::default()
     };
 
     // Create a system with trifurcation to test bilateral symmetry
@@ -401,6 +403,10 @@ fn test_arc_channels() {
         curvature_factor: 0.5,
         smoothness: 15,
         curvature_direction: 0.0, // Auto-determine
+        min_separation_distance: 1.0,
+        enable_collision_prevention: true,
+        max_curvature_reduction: 0.5,
+        enable_adaptive_curvature: true,
     };
     
     // Create system with all arc channels
@@ -534,6 +540,10 @@ fn test_arc_curvature_symmetry() {
         curvature_factor: 0.5,
         smoothness: 10,
         curvature_direction: 0.0, // Auto-determine
+        min_separation_distance: 1.0,
+        enable_collision_prevention: true,
+        max_curvature_reduction: 0.5,
+        enable_adaptive_curvature: true,
     };
     let channel_config = ChannelTypeConfig::AllArcs(arc_config);
     let splits = vec![SplitType::Bifurcation];

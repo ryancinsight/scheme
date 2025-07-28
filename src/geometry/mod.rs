@@ -20,11 +20,14 @@
 //! - **Factory Pattern**: For creating appropriate strategies
 //! - **Builder Pattern**: For constructing complex geometries and metadata
 
+pub mod adaptive_collision;
 pub mod builders;
+pub mod collision_detection;
 pub mod generator;
 pub mod metadata;
 pub mod optimization;
 pub mod strategies;
+pub mod state_integration;
 pub mod types;
 
 pub use self::{
