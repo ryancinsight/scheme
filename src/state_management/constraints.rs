@@ -260,6 +260,20 @@ impl ParameterConstraints<usize> {
             }
         })
     }
+}
+
+/// Common constraint builders for u32 types
+impl ParameterConstraints<u32> {
+    /// Create a positive constraint (> 0)
+    pub fn positive() -> Self {
+        Self::custom("positive", |v| {
+            if *v > 0 {
+                Ok(())
+            } else {
+                Err("must be positive".to_string())
+            }
+        })
+    }
     
     /// Create a non-zero constraint (!= 0)
     pub fn non_zero() -> Self {

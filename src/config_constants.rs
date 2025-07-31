@@ -86,18 +86,45 @@ impl StrategyThresholds {
 pub struct WaveGenerationConstants {
     /// Sharpness factor for square wave generation
     pub square_wave_sharpness: ConfigurableParameter<f64>,
-    
+
     /// Transition zone factor for smooth endpoints
     pub transition_zone_factor: ConfigurableParameter<f64>,
-    
+
     /// Gaussian envelope scaling factor
     pub gaussian_envelope_scale: ConfigurableParameter<f64>,
-    
+
     /// Phase direction calculation threshold
     pub phase_direction_threshold: ConfigurableParameter<f64>,
-    
+
     /// Wave amplitude safety margin
     pub amplitude_safety_margin: ConfigurableParameter<f64>,
+
+    /// Smooth endpoint transition start threshold
+    pub smooth_endpoint_start_threshold: ConfigurableParameter<f64>,
+
+    /// Smooth endpoint transition end threshold
+    pub smooth_endpoint_end_threshold: ConfigurableParameter<f64>,
+
+    /// Default transition length factor for smooth transitions
+    pub default_transition_length_factor: ConfigurableParameter<f64>,
+
+    /// Default transition amplitude factor
+    pub default_transition_amplitude_factor: ConfigurableParameter<f64>,
+
+    /// Default transition smoothness points
+    pub default_transition_smoothness: ConfigurableParameter<usize>,
+
+    /// Default wave multiplier for transitions
+    pub default_wave_multiplier: ConfigurableParameter<f64>,
+
+    /// Wall proximity scaling factor
+    pub wall_proximity_scaling_factor: ConfigurableParameter<f64>,
+
+    /// Neighbor avoidance scaling factor
+    pub neighbor_avoidance_scaling_factor: ConfigurableParameter<f64>,
+
+    /// Geometric tolerance for distance comparisons
+    pub geometric_tolerance: ConfigurableParameter<f64>,
 }
 
 impl WaveGenerationConstants {
@@ -168,6 +195,123 @@ impl WaveGenerationConstants {
                     "wave_generation"
                 ).with_units("factor")
             ),
+
+            smooth_endpoint_start_threshold: ConfigurableParameter::new(
+                0.1,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.01, 0.5),
+                ]),
+                ParameterMetadata::new(
+                    "smooth_endpoint_start_threshold",
+                    "Threshold for smooth endpoint transition start",
+                    "wave_generation"
+                ).with_units("ratio")
+            ),
+
+            smooth_endpoint_end_threshold: ConfigurableParameter::new(
+                0.9,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.5, 0.99),
+                ]),
+                ParameterMetadata::new(
+                    "smooth_endpoint_end_threshold",
+                    "Threshold for smooth endpoint transition end",
+                    "wave_generation"
+                ).with_units("ratio")
+            ),
+
+            default_transition_length_factor: ConfigurableParameter::new(
+                0.15,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.05, 0.5),
+                ]),
+                ParameterMetadata::new(
+                    "default_transition_length_factor",
+                    "Default length factor for smooth transitions",
+                    "wave_generation"
+                ).with_units("ratio")
+            ),
+
+            default_transition_amplitude_factor: ConfigurableParameter::new(
+                0.3,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::normalized(),
+                ]),
+                ParameterMetadata::new(
+                    "default_transition_amplitude_factor",
+                    "Default amplitude factor for smooth transitions",
+                    "wave_generation"
+                ).with_units("ratio")
+            ),
+
+            default_transition_smoothness: ConfigurableParameter::new(
+                20,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<usize>::positive(),
+                    ParameterConstraints::range(5, 100),
+                ]),
+                ParameterMetadata::new(
+                    "default_transition_smoothness",
+                    "Default number of points for transition smoothing",
+                    "wave_generation"
+                ).with_units("points")
+            ),
+
+            default_wave_multiplier: ConfigurableParameter::new(
+                2.0,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.5, 10.0),
+                ]),
+                ParameterMetadata::new(
+                    "default_wave_multiplier",
+                    "Default wave multiplier for transitions",
+                    "wave_generation"
+                ).with_units("factor")
+            ),
+
+            wall_proximity_scaling_factor: ConfigurableParameter::new(
+                0.8,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::normalized(),
+                ]),
+                ParameterMetadata::new(
+                    "wall_proximity_scaling_factor",
+                    "Scaling factor for wall proximity calculations",
+                    "wave_generation"
+                ).with_units("factor")
+            ),
+
+            neighbor_avoidance_scaling_factor: ConfigurableParameter::new(
+                0.8,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::normalized(),
+                ]),
+                ParameterMetadata::new(
+                    "neighbor_avoidance_scaling_factor",
+                    "Scaling factor for neighbor avoidance calculations",
+                    "wave_generation"
+                ).with_units("factor")
+            ),
+
+            geometric_tolerance: ConfigurableParameter::new(
+                1e-6,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(1e-12, 1e-3),
+                ]),
+                ParameterMetadata::new(
+                    "geometric_tolerance",
+                    "Tolerance for geometric distance comparisons",
+                    "wave_generation"
+                ).with_units("units")
+            ),
         }
     }
 }
@@ -191,6 +335,27 @@ pub struct GeometryGenerationConstants {
 
     /// Default channel height
     pub default_channel_height: ConfigurableParameter<f64>,
+
+    /// Channel width multiplier for short channel detection
+    pub short_channel_width_multiplier: ConfigurableParameter<f64>,
+
+    /// Default middle points for smooth straight channels
+    pub smooth_straight_middle_points: ConfigurableParameter<usize>,
+
+    /// Horizontal angle threshold for strategy selection
+    pub horizontal_angle_threshold: ConfigurableParameter<f64>,
+
+    /// Long horizontal threshold for strategy selection
+    pub long_horizontal_threshold: ConfigurableParameter<f64>,
+
+    /// Minimum arc length threshold for strategy selection
+    pub min_arc_length_threshold: ConfigurableParameter<f64>,
+
+    /// Maximum curvature reduction factor for adaptive arcs
+    pub max_curvature_reduction_factor: ConfigurableParameter<f64>,
+
+    /// Minimum curvature factor for adaptive arcs
+    pub min_curvature_factor: ConfigurableParameter<f64>,
 }
 
 impl GeometryGenerationConstants {
@@ -273,6 +438,97 @@ impl GeometryGenerationConstants {
                     "Default channel height for geometry generation",
                     "geometry_generation"
                 ).with_units("mm")
+            ),
+
+            short_channel_width_multiplier: ConfigurableParameter::new(
+                2.0,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(1.0, 10.0),
+                ]),
+                ParameterMetadata::new(
+                    "short_channel_width_multiplier",
+                    "Multiplier for channel width to detect short channels",
+                    "geometry_generation"
+                ).with_units("factor")
+            ),
+
+            smooth_straight_middle_points: ConfigurableParameter::new(
+                10,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<usize>::positive(),
+                    ParameterConstraints::range(5, 100),
+                ]),
+                ParameterMetadata::new(
+                    "smooth_straight_middle_points",
+                    "Number of middle points for smooth straight channels",
+                    "geometry_generation"
+                ).with_units("points")
+            ),
+
+            horizontal_angle_threshold: ConfigurableParameter::new(
+                0.5,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.1, 2.0),
+                ]),
+                ParameterMetadata::new(
+                    "horizontal_angle_threshold",
+                    "Threshold for detecting horizontal channels in strategy selection",
+                    "geometry_generation"
+                ).with_units("ratio")
+            ),
+
+            long_horizontal_threshold: ConfigurableParameter::new(
+                0.6,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.1, 1.0),
+                ]),
+                ParameterMetadata::new(
+                    "long_horizontal_threshold",
+                    "Threshold for detecting long horizontal channels",
+                    "geometry_generation"
+                ).with_units("ratio")
+            ),
+
+            min_arc_length_threshold: ConfigurableParameter::new(
+                0.3,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.1, 1.0),
+                ]),
+                ParameterMetadata::new(
+                    "min_arc_length_threshold",
+                    "Minimum length threshold for arc channel selection",
+                    "geometry_generation"
+                ).with_units("ratio")
+            ),
+
+            max_curvature_reduction_factor: ConfigurableParameter::new(
+                0.5,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::normalized(),
+                ]),
+                ParameterMetadata::new(
+                    "max_curvature_reduction_factor",
+                    "Maximum curvature reduction factor for adaptive arcs",
+                    "geometry_generation"
+                ).with_units("factor")
+            ),
+
+            min_curvature_factor: ConfigurableParameter::new(
+                0.1,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.01, 1.0),
+                ]),
+                ParameterMetadata::new(
+                    "min_curvature_factor",
+                    "Minimum curvature factor for adaptive arcs",
+                    "geometry_generation"
+                ).with_units("factor")
             ),
         }
     }
@@ -391,6 +647,96 @@ impl OptimizationConstants {
     }
 }
 
+/// Visualization constants previously hardcoded
+pub struct VisualizationConstants {
+    /// Default margin for chart rendering
+    pub default_chart_margin: ConfigurableParameter<u32>,
+
+    /// Default right margin for chart rendering
+    pub default_chart_right_margin: ConfigurableParameter<u32>,
+
+    /// Default label area size for x-axis
+    pub default_x_label_area_size: ConfigurableParameter<u32>,
+
+    /// Default label area size for y-axis
+    pub default_y_label_area_size: ConfigurableParameter<u32>,
+
+    /// Default buffer factor for chart boundaries
+    pub default_boundary_buffer_factor: ConfigurableParameter<f64>,
+}
+
+impl VisualizationConstants {
+    /// Create default visualization constants
+    pub fn default() -> Self {
+        Self {
+            default_chart_margin: ConfigurableParameter::new(
+                20u32,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<u32>::positive(),
+                    ParameterConstraints::range(5, 100),
+                ]),
+                ParameterMetadata::new(
+                    "default_chart_margin",
+                    "Default margin for chart rendering",
+                    "visualization"
+                ).with_units("pixels")
+            ),
+
+            default_chart_right_margin: ConfigurableParameter::new(
+                150u32,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<u32>::positive(),
+                    ParameterConstraints::range(50, 500),
+                ]),
+                ParameterMetadata::new(
+                    "default_chart_right_margin",
+                    "Default right margin for chart rendering",
+                    "visualization"
+                ).with_units("pixels")
+            ),
+
+            default_x_label_area_size: ConfigurableParameter::new(
+                40u32,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<u32>::positive(),
+                    ParameterConstraints::range(20, 200),
+                ]),
+                ParameterMetadata::new(
+                    "default_x_label_area_size",
+                    "Default label area size for x-axis",
+                    "visualization"
+                ).with_units("pixels")
+            ),
+
+            default_y_label_area_size: ConfigurableParameter::new(
+                40u32,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<u32>::positive(),
+                    ParameterConstraints::range(20, 200),
+                ]),
+                ParameterMetadata::new(
+                    "default_y_label_area_size",
+                    "Default label area size for y-axis",
+                    "visualization"
+                ).with_units("pixels")
+            ),
+
+            default_boundary_buffer_factor: ConfigurableParameter::new(
+                0.1,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.01, 1.0),
+                ]),
+                ParameterMetadata::new(
+                    "default_boundary_buffer_factor",
+                    "Default buffer factor for chart boundaries",
+                    "visualization"
+                ).with_units("ratio")
+            ),
+        }
+    }
+}
+
 /// Central constants registry containing all configuration constants
 pub struct ConstantsRegistry {
     /// Strategy selection thresholds
@@ -404,6 +750,9 @@ pub struct ConstantsRegistry {
 
     /// Optimization constants
     pub optimization: OptimizationConstants,
+
+    /// Visualization constants
+    pub visualization: VisualizationConstants,
 }
 
 impl ConstantsRegistry {
@@ -414,6 +763,7 @@ impl ConstantsRegistry {
             wave_generation: WaveGenerationConstants::default(),
             geometry_generation: GeometryGenerationConstants::default(),
             optimization: OptimizationConstants::default(),
+            visualization: VisualizationConstants::default(),
         }
     }
 
@@ -496,5 +846,110 @@ impl ConstantsRegistry {
     /// Get the fast optimization fill factors
     pub fn get_fast_fill_factors(&self) -> &Vec<f64> {
         self.optimization.fast_fill_factors.get_raw_value()
+    }
+
+    /// Get the smooth endpoint start threshold
+    pub fn get_smooth_endpoint_start_threshold(&self) -> f64 {
+        *self.wave_generation.smooth_endpoint_start_threshold.get_raw_value()
+    }
+
+    /// Get the smooth endpoint end threshold
+    pub fn get_smooth_endpoint_end_threshold(&self) -> f64 {
+        *self.wave_generation.smooth_endpoint_end_threshold.get_raw_value()
+    }
+
+    /// Get the default transition length factor
+    pub fn get_default_transition_length_factor(&self) -> f64 {
+        *self.wave_generation.default_transition_length_factor.get_raw_value()
+    }
+
+    /// Get the default transition amplitude factor
+    pub fn get_default_transition_amplitude_factor(&self) -> f64 {
+        *self.wave_generation.default_transition_amplitude_factor.get_raw_value()
+    }
+
+    /// Get the default transition smoothness
+    pub fn get_default_transition_smoothness(&self) -> usize {
+        *self.wave_generation.default_transition_smoothness.get_raw_value()
+    }
+
+    /// Get the default wave multiplier
+    pub fn get_default_wave_multiplier(&self) -> f64 {
+        *self.wave_generation.default_wave_multiplier.get_raw_value()
+    }
+
+    /// Get the wall proximity scaling factor
+    pub fn get_wall_proximity_scaling_factor(&self) -> f64 {
+        *self.wave_generation.wall_proximity_scaling_factor.get_raw_value()
+    }
+
+    /// Get the neighbor avoidance scaling factor
+    pub fn get_neighbor_avoidance_scaling_factor(&self) -> f64 {
+        *self.wave_generation.neighbor_avoidance_scaling_factor.get_raw_value()
+    }
+
+    /// Get the geometric tolerance
+    pub fn get_geometric_tolerance(&self) -> f64 {
+        *self.wave_generation.geometric_tolerance.get_raw_value()
+    }
+
+    /// Get the short channel width multiplier
+    pub fn get_short_channel_width_multiplier(&self) -> f64 {
+        *self.geometry_generation.short_channel_width_multiplier.get_raw_value()
+    }
+
+    /// Get the smooth straight middle points
+    pub fn get_smooth_straight_middle_points(&self) -> usize {
+        *self.geometry_generation.smooth_straight_middle_points.get_raw_value()
+    }
+
+    /// Get the horizontal angle threshold
+    pub fn get_horizontal_angle_threshold(&self) -> f64 {
+        *self.geometry_generation.horizontal_angle_threshold.get_raw_value()
+    }
+
+    /// Get the long horizontal threshold
+    pub fn get_long_horizontal_threshold(&self) -> f64 {
+        *self.geometry_generation.long_horizontal_threshold.get_raw_value()
+    }
+
+    /// Get the minimum arc length threshold
+    pub fn get_min_arc_length_threshold(&self) -> f64 {
+        *self.geometry_generation.min_arc_length_threshold.get_raw_value()
+    }
+
+    /// Get the maximum curvature reduction factor
+    pub fn get_max_curvature_reduction_factor(&self) -> f64 {
+        *self.geometry_generation.max_curvature_reduction_factor.get_raw_value()
+    }
+
+    /// Get the minimum curvature factor
+    pub fn get_min_curvature_factor(&self) -> f64 {
+        *self.geometry_generation.min_curvature_factor.get_raw_value()
+    }
+
+    /// Get the default chart margin
+    pub fn get_default_chart_margin(&self) -> u32 {
+        *self.visualization.default_chart_margin.get_raw_value()
+    }
+
+    /// Get the default chart right margin
+    pub fn get_default_chart_right_margin(&self) -> u32 {
+        *self.visualization.default_chart_right_margin.get_raw_value()
+    }
+
+    /// Get the default x-label area size
+    pub fn get_default_x_label_area_size(&self) -> u32 {
+        *self.visualization.default_x_label_area_size.get_raw_value()
+    }
+
+    /// Get the default y-label area size
+    pub fn get_default_y_label_area_size(&self) -> u32 {
+        *self.visualization.default_y_label_area_size.get_raw_value()
+    }
+
+    /// Get the default boundary buffer factor
+    pub fn get_default_boundary_buffer_factor(&self) -> f64 {
+        *self.visualization.default_boundary_buffer_factor.get_raw_value()
     }
 }

@@ -265,7 +265,7 @@ impl GeometryGenerator {
         let first_half_lines = self.generate_first_half(splits);
 
         // Collect y-coordinates for dynamic amplitude calculation
-        let mut y_coords_for_amplitude: Vec<f64> = Vec::new();
+        let mut y_coords_for_amplitude: Vec<f64> = Vec::with_capacity(first_half_lines.len());
         for (p1, p2) in &first_half_lines {
             y_coords_for_amplitude.push((p1.1 + p2.1) / 2.0);
         }
@@ -435,7 +435,7 @@ impl GeometryGenerator {
         }
 
         // Collect y-coordinates for amplitude calculation
-        let mut y_coords_for_amplitude: Vec<f64> = Vec::new();
+        let mut y_coords_for_amplitude: Vec<f64> = Vec::with_capacity(lines.len());
         for (p1, p2) in &lines {
             y_coords_for_amplitude.push((p1.1 + p2.1) / 2.0);
         }

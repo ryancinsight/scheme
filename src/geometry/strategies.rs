@@ -9,7 +9,7 @@ use crate::geometry::optimization::optimize_serpentine_parameters;
 use crate::config::{ArcConfig, ChannelTypeConfig, GeometryConfig, SerpentineConfig, constants};
 use crate::config_constants::ConstantsRegistry;
 use crate::state_management::bilateral_symmetry::{
-    SymmetryContext, BilateralSymmetryConfig, BilateralPhaseDirectionCalculator, ChannelPositionClassification
+    SymmetryContext, BilateralSymmetryConfig, BilateralPhaseDirectionCalculator
 };
 
 /// Context object for channel generation to reduce parameter coupling
@@ -80,13 +80,17 @@ impl EnvelopeCalculator for SmoothEndpointEnvelopeCalculator {
         // This ensures zero amplitude and zero derivative at endpoints
         let smoothstep = |x: f64| x * x * (3.0 - 2.0 * x);
 
+        let constants = ConstantsRegistry::new();
+        let start_threshold = constants.get_smooth_endpoint_start_threshold();
+        let end_threshold = constants.get_smooth_endpoint_end_threshold();
+
         // Create smooth transitions at both ends
-        let start_transition = if t < 0.1 {
-            smoothstep(t / 0.1)
+        let start_transition = if t < start_threshold {
+            smoothstep(t / start_threshold)
         } else { 1.0 };
 
-        let end_transition = if t > 0.9 {
-            smoothstep((1.0 - t) / 0.1)
+        let end_transition = if t > end_threshold {
+            smoothstep((1.0 - t) / (1.0 - end_threshold))
         } else { 1.0 };
 
         start_transition * end_transition
@@ -246,11 +250,12 @@ pub struct SmoothTransitionConfig {
 
 impl Default for SmoothTransitionConfig {
     fn default() -> Self {
+        let constants = ConstantsRegistry::new();
         Self {
-            transition_length_factor: 0.15, // 15% of channel length for transitions
-            transition_amplitude_factor: 0.3, // 30% of channel width for amplitude
-            transition_smoothness: 20, // 20 points per transition zone
-            wave_multiplier: 2.0, // One complete wave across the channel
+            transition_length_factor: constants.get_default_transition_length_factor(),
+            transition_amplitude_factor: constants.get_default_transition_amplitude_factor(),
+            transition_smoothness: constants.get_default_transition_smoothness(),
+            wave_multiplier: constants.get_default_wave_multiplier(),
         }
     }
 }
@@ -370,8 +375,9 @@ impl SmoothStraightChannelStrategy {
         let dy = p2.1 - p1.1;
         let channel_length = (dx * dx + dy * dy).sqrt();
 
+        let constants = ConstantsRegistry::new();
         // For very short channels, just return straight line
-        if channel_length < geometry_config.channel_width * 2.0 {
+        if channel_length < geometry_config.channel_width * constants.get_short_channel_width_multiplier() {
             return vec![p1, p2];
         }
 
@@ -673,6 +679,7 @@ impl SerpentineChannelStrategy {
         p2: Point2D,
         context: &ChannelGenerationContext,
     ) -> f64 {
+        let constants = ConstantsRegistry::new();
         let channel_center_y = (p1.1 + p2.1) / 2.0;
         let box_height = context.box_dims.1;
 
@@ -684,7 +691,7 @@ impl SerpentineChannelStrategy {
                 let distance_to_bottom = channel_center_y;
                 let wall_distance = distance_to_top.min(distance_to_bottom);
                 if self.config.adaptive_config.enable_wall_proximity_scaling {
-                    wall_distance * 0.8
+                    wall_distance * constants.get_wall_proximity_scaling_factor()
                 } else {
                     wall_distance * self.config.fill_factor
                 }
@@ -693,12 +700,12 @@ impl SerpentineChannelStrategy {
                 let mut min_distance = f64::INFINITY;
                 for &neighbor_y in neighbors {
                     let distance = (neighbor_y - channel_center_y).abs();
-                    if distance > 1e-6 {
+                    if distance > constants.get_geometric_tolerance() {
                         min_distance = min_distance.min(distance);
                     }
                 }
                 let neighbor_amplitude = if self.config.adaptive_config.enable_neighbor_avoidance {
-                    (min_distance / 2.0) * 0.8 // Conservative neighbor avoidance
+                    (min_distance / 2.0) * constants.get_neighbor_avoidance_scaling_factor()
                 } else {
                     (min_distance / 2.0) * self.config.fill_factor // Use fill factor
                 };
@@ -710,7 +717,7 @@ impl SerpentineChannelStrategy {
             let distance_to_bottom = channel_center_y;
             let wall_distance = distance_to_top.min(distance_to_bottom);
             if self.config.adaptive_config.enable_wall_proximity_scaling {
-                wall_distance * 0.8
+                wall_distance * constants.get_wall_proximity_scaling_factor()
             } else {
                 wall_distance * self.config.fill_factor
             }
@@ -891,14 +898,15 @@ impl ArcChannelStrategy {
 
     /// Generate a smooth arc path between two points
     fn generate_arc_path(&self, p1: Point2D, p2: Point2D, box_dims: (f64, f64)) -> Vec<Point2D> {
+        let constants = ConstantsRegistry::new();
         let mut path = Vec::with_capacity(self.config.smoothness + 2);
-        
+
         let dx = p2.0 - p1.0;
         let dy = p2.1 - p1.1;
         let distance = (dx * dx + dy * dy).sqrt();
-        
+
         // For very short channels or zero curvature, return straight line
-        if distance < 1e-6 || self.config.curvature_factor < 1e-6 {
+        if distance < constants.get_geometric_tolerance() || self.config.curvature_factor < constants.get_geometric_tolerance() {
             path.push(p1);
             path.push(p2);
             return path;
@@ -1014,6 +1022,7 @@ impl ArcChannelStrategy {
         total_branches: usize,
         neighbor_info: Option<&[f64]>,
     ) -> f64 {
+        let constants = ConstantsRegistry::new();
         if !self.config.enable_adaptive_curvature {
             return self.config.curvature_factor;
         }
@@ -1032,12 +1041,12 @@ impl ArcChannelStrategy {
         adaptive_factor *= (1.0 - proximity_reduction).max(self.config.max_curvature_reduction);
 
         // Additional safety check for very short channels
-        if channel_length < self.config.min_separation_distance * 2.0 {
-            adaptive_factor *= 0.5; // Reduce curvature for very short channels
+        if channel_length < self.config.min_separation_distance * constants.get_short_channel_width_multiplier() {
+            adaptive_factor *= constants.get_max_curvature_reduction_factor(); // Reduce curvature for very short channels
         }
 
         // Ensure we don't go below minimum curvature
-        adaptive_factor.max(0.1)
+        adaptive_factor.max(constants.get_min_curvature_factor())
     }
 
     /// Calculate proximity-based curvature reduction factor
@@ -1188,18 +1197,19 @@ impl ChannelTypeFactory {
         serpentine_config: SerpentineConfig,
         arc_config: ArcConfig,
     ) -> Box<dyn ChannelTypeStrategy> {
+        let constants = ConstantsRegistry::new();
         let dx = to.0 - from.0;
         let dy = to.1 - from.1;
         let length = (dx * dx + dy * dy).sqrt();
 
         // Smart logic: use serpentine for longer horizontal channels,
         // arcs for angled channels, straight for short channels
-        if length > box_dims.0 * constants::strategy_thresholds::LONG_HORIZONTAL_THRESHOLD
-            && dy.abs() < dx.abs() * constants::strategy_thresholds::HORIZONTAL_ANGLE_THRESHOLD {
+        if length > box_dims.0 * constants.get_long_horizontal_threshold()
+            && dy.abs() < dx.abs() * constants.get_horizontal_angle_threshold() {
             // Long horizontal channel - use serpentine
             Box::new(SerpentineChannelStrategy::new(serpentine_config))
         } else if Self::is_angled_channel(from, to)
-            && length > box_dims.0 * constants::strategy_thresholds::MIN_ARC_LENGTH_THRESHOLD {
+            && length > box_dims.0 * constants.get_min_arc_length_threshold() {
             // Angled channel of reasonable length - use arc
             Box::new(ArcChannelStrategy::new(arc_config))
         } else {
@@ -1216,14 +1226,15 @@ impl ChannelTypeFactory {
         serpentine_config: SerpentineConfig,
         smooth_straight_config: SmoothTransitionConfig,
     ) -> Box<dyn ChannelTypeStrategy> {
+        let constants = ConstantsRegistry::new();
         let dx = to.0 - from.0;
         let dy = to.1 - from.1;
         let length = (dx * dx + dy * dy).sqrt();
 
         // Use serpentine for longer horizontal channels (branches)
         // Use smooth straight for shorter channels and junction connectors
-        if length > box_dims.0 * constants::strategy_thresholds::LONG_HORIZONTAL_THRESHOLD
-            && dy.abs() < dx.abs() * constants::strategy_thresholds::HORIZONTAL_ANGLE_THRESHOLD {
+        if length > box_dims.0 * constants.get_long_horizontal_threshold()
+            && dy.abs() < dx.abs() * constants.get_horizontal_angle_threshold() {
             // Long horizontal channel - use serpentine
             Box::new(SerpentineChannelStrategy::new(serpentine_config))
         } else {
@@ -1234,11 +1245,12 @@ impl ChannelTypeFactory {
 
     /// Check if a channel is significantly angled
     fn is_angled_channel(from: Point2D, to: Point2D) -> bool {
+        let constants = ConstantsRegistry::new();
         let dx = to.0 - from.0;
         let dy = to.1 - from.1;
 
-        if dx.abs() < 1e-6 {
-            return dy.abs() > 1e-6; // Vertical channel
+        if dx.abs() < constants.get_geometric_tolerance() {
+            return dy.abs() > constants.get_geometric_tolerance(); // Vertical channel
         }
 
         let slope = dy / dx;

@@ -10,6 +10,7 @@ use crate::visualizations::traits::{
     SchematicRenderer, GeometricDrawer, VisualizationEngine,
     RenderConfig, OutputFormat, Color, LineStyle, TextStyle
 };
+use crate::config_constants::ConstantsRegistry;
 use plotters::prelude::*;
 use plotters::coord::{Shift, types::RangedCoordf64};
 use plotters::style::Color as PlottersColor;
@@ -127,12 +128,13 @@ impl PlottersRenderer {
         let x_buffer = length * config.margin_fraction;
         let y_buffer = width * config.margin_fraction;
 
+        let constants = ConstantsRegistry::new();
         let mut chart = ChartBuilder::on(&root)
             .caption(&config.title, (config.title_style.font_family.as_str(), config.title_style.font_size as i32))
-            .margin(20)
-            .margin_right(150)
-            .x_label_area_size(40)
-            .y_label_area_size(40)
+            .margin(constants.get_default_chart_margin())
+            .margin_right(constants.get_default_chart_right_margin())
+            .x_label_area_size(constants.get_default_x_label_area_size())
+            .y_label_area_size(constants.get_default_y_label_area_size())
             .build_cartesian_2d(
                 -x_buffer..length + x_buffer,
                 -y_buffer..width + y_buffer,

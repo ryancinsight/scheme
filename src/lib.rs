@@ -81,7 +81,6 @@ pub mod geometry;
 pub mod visualizations;
 pub mod config;
 pub mod config_constants;
-pub mod codebase_cleanup;
 pub mod error;
 pub mod state_management;
 

@@ -75,7 +75,7 @@ fn bench_png_rendering(c: &mut Criterion) {
                 let output_path = format!("target/bench_outputs/bench_{}.png", name);
                 b.iter(|| {
                     plot_geometry(black_box(geom), black_box(&output_path))
-                        .expect("PNG rendering should succeed")
+                        .unwrap_or_else(|e| panic!("PNG rendering failed: {}", e))
                 })
             },
         );
@@ -116,7 +116,7 @@ fn bench_rendering_sizes(c: &mut Criterion) {
                 let output_path = format!("target/bench_outputs/bench_size_{}.png", size_name);
                 b.iter(|| {
                     plot_geometry(black_box(geom), black_box(&output_path))
-                        .expect("PNG rendering should succeed")
+                        .unwrap_or_else(|e| panic!("PNG rendering failed: {}", e))
                 })
             },
         );
@@ -162,7 +162,7 @@ fn bench_channel_count_impact(c: &mut Criterion) {
                 let output_path = format!("target/bench_outputs/bench_channels_{}.png", pattern_name);
                 b.iter(|| {
                     plot_geometry(black_box(geom), black_box(&output_path))
-                        .expect("PNG rendering should succeed")
+                        .unwrap_or_else(|e| panic!("PNG rendering failed: {}", e))
                 })
             },
         );
@@ -233,7 +233,7 @@ fn bench_serpentine_complexity(c: &mut Criterion) {
                 let output_path = format!("target/bench_outputs/bench_serpentine_{}.png", config_name);
                 b.iter(|| {
                     plot_geometry(black_box(geom), black_box(&output_path))
-                        .expect("PNG rendering should succeed")
+                        .unwrap_or_else(|e| panic!("PNG rendering failed: {}", e))
                 })
             },
         );

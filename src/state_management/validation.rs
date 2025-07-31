@@ -381,7 +381,7 @@ mod tests {
 
     fn create_test_parameters() -> HashMap<String, Box<dyn Any>> {
         let mut params = HashMap::new();
-        params.insert("amplitude".to_string(), Box::new(5.0) as Box<dyn Any>);
+        params.insert("amplitude".to_string(), Box::new(1.5) as Box<dyn Any>);
         params.insert("wavelength_factor".to_string(), Box::new(2.0) as Box<dyn Any>);
         params.insert("channel_width".to_string(), Box::new(1.0) as Box<dyn Any>);
         params.insert("wall_clearance".to_string(), Box::new(0.5) as Box<dyn Any>);
@@ -412,15 +412,15 @@ mod tests {
         );
         let params = create_test_parameters();
         
-        // amplitude (5.0) > wavelength_factor (2.0), so this should pass
+        // amplitude (1.5) < wavelength_factor (2.0), so this should pass
         assert!(rule.validate(&params).is_ok());
-        
+
         let mut bad_params = HashMap::new();
-        bad_params.insert("amplitude".to_string(), Box::new(1.0) as Box<dyn Any>);
+        bad_params.insert("amplitude".to_string(), Box::new(3.0) as Box<dyn Any>);
         bad_params.insert("wavelength_factor".to_string(), Box::new(2.0) as Box<dyn Any>);
         bad_params.insert("channel_width".to_string(), Box::new(1.0) as Box<dyn Any>);
         bad_params.insert("wall_clearance".to_string(), Box::new(0.5) as Box<dyn Any>);
-        // amplitude (1.0) < wavelength_factor (2.0), so this should fail
+        // amplitude (3.0) > wavelength_factor (2.0), so this should fail
         assert!(rule.validate(&bad_params).is_err());
     }
 
