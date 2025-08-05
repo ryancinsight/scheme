@@ -132,10 +132,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ("smart_default", ChannelTypeConfig::Smart {
             serpentine_config: scheme::config::SerpentineConfig::default(),
             arc_config: ArcConfig::default(),
+            frustum_config: scheme::config::FrustumConfig::default(),
         }, "Default smart selection"),
         ("smart_pronounced", ChannelTypeConfig::Smart {
             serpentine_config: presets::smooth_serpentine(),
             arc_config: presets::pronounced_arcs(),
+            frustum_config: scheme::config::FrustumConfig::default(),
         }, "Pronounced curves with smooth serpentines"),
         ("smart_mixed_position", ChannelTypeConfig::MixedByPosition {
             middle_zone_fraction: 0.4,

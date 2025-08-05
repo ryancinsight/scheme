@@ -10,7 +10,7 @@
 //! The library is organized into several key modules:
 //!
 //! - **geometry**: Core geometric types and generation logic
-//!   - `types`: Fundamental data structures (Point2D, Node, Channel, etc.)
+//!   - `types`: Fundamental data structures (`Point2D`, `Node`, `Channel`, etc.)
 //!   - `strategies`: Channel type generation strategies (Strategy pattern)
 //!   - `generator`: Main geometry generation orchestration
 //! - **config**: Configuration types for geometry and channel generation

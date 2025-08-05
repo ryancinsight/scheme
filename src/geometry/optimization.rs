@@ -7,7 +7,51 @@
 use crate::geometry::types::Point2D;
 use crate::config::{GeometryConfig, SerpentineConfig, OptimizationProfile};
 use crate::config_constants::ConstantsRegistry;
-// use std::collections::HashMap; // For future parameter caching
+
+/// Optimization algorithm constants
+mod constants {
+    /// Minimum path length threshold for valid optimization results
+    pub const MIN_PATH_LENGTH_THRESHOLD: f64 = 0.0;
+
+    /// Penalty multiplier for constraint violations
+    pub const CONSTRAINT_PENALTY_MULTIPLIER: f64 = 1000.0;
+
+    /// Small penalty tolerance for validity checking
+    pub const PENALTY_TOLERANCE: f64 = 1.0;
+
+    /// Nelder-Mead algorithm coefficients
+    pub const REFLECTION_COEFFICIENT: f64 = 1.0;
+    pub const EXPANSION_COEFFICIENT: f64 = 2.0;
+    pub const CONTRACTION_COEFFICIENT: f64 = 0.5;
+    pub const SHRINK_COEFFICIENT: f64 = 0.5;
+
+    /// Parameter bounds for optimization
+    pub const MIN_WAVELENGTH_FACTOR: f64 = 0.5;
+    pub const MAX_WAVELENGTH_FACTOR: f64 = 5.0;
+    pub const MIN_WAVE_DENSITY_FACTOR: f64 = 0.5;
+    pub const MAX_WAVE_DENSITY_FACTOR: f64 = 5.0;
+    pub const MIN_FILL_FACTOR: f64 = 0.1;
+    pub const MAX_FILL_FACTOR: f64 = 0.95;
+
+    /// Simplex initialization perturbation factors
+    pub const WAVELENGTH_PERTURBATION: f64 = 1.1;
+    pub const WAVE_DENSITY_PERTURBATION: f64 = 1.1;
+    pub const FILL_FACTOR_PERTURBATION: f64 = 1.05;
+
+    /// Wave shape parameters
+    pub const SQUARE_WAVE_SHARPNESS: f64 = 5.0;
+
+    /// Envelope calculation constants
+    pub const SMOOTHSTEP_COEFFICIENT_1: f64 = 3.0;
+    pub const SMOOTHSTEP_COEFFICIENT_2: f64 = 2.0;
+    pub const GAUSSIAN_CENTER: f64 = 0.5;
+    pub const GAUSSIAN_EXPONENT_COEFFICIENT: f64 = -0.5;
+    pub const GAUSSIAN_POWER: i32 = 2;
+
+    /// Distance normalization bounds
+    pub const MIN_DISTANCE_NORMALIZATION: f64 = 0.1;
+    pub const MAX_DISTANCE_NORMALIZATION: f64 = 1.0;
+}
 
 /// Calculate the total path length of a serpentine channel
 ///
@@ -16,6 +60,7 @@ use crate::config_constants::ConstantsRegistry;
 ///
 /// # Returns
 /// Total length of the path by summing Euclidean distances between consecutive points
+#[must_use]
 pub fn calculate_path_length(path: &[Point2D]) -> f64 {
     if path.len() < 2 {
         return 0.0;
@@ -26,7 +71,7 @@ pub fn calculate_path_length(path: &[Point2D]) -> f64 {
             let (p1, p2) = (window[0], window[1]);
             let dx = p2.0 - p1.0;
             let dy = p2.1 - p1.1;
-            (dx * dx + dy * dy).sqrt()
+            dx.hypot(dy)
         })
         .sum()
 }
@@ -40,6 +85,7 @@ pub fn calculate_path_length(path: &[Point2D]) -> f64 {
 ///
 /// # Returns
 /// Minimum distance from any path point to the nearest wall, considering channel width
+#[must_use]
 pub fn calculate_min_wall_distance(
     path: &[Point2D], 
     box_dims: (f64, f64),
@@ -71,6 +117,7 @@ pub fn calculate_min_wall_distance(
 ///
 /// # Returns
 /// Minimum distance to any neighboring channel, considering channel width
+#[must_use]
 pub fn calculate_min_neighbor_distance(
     path: &[Point2D],
     neighbor_positions: &[f64],
@@ -148,7 +195,6 @@ pub struct OptimizationStats {
 /// Parameter cache for optimization
 // Future enhancement: Parameter caching for optimization
 // type ParameterCache = HashMap<String, (f64, f64, f64)>; // key -> (length, wall_dist, neighbor_dist)
-
 /// Optimize serpentine parameters to maximize channel length using advanced algorithms
 ///
 /// # Arguments
@@ -161,6 +207,7 @@ pub struct OptimizationStats {
 ///
 /// # Returns
 /// Optimized parameters that maximize channel length while maintaining constraints
+#[must_use]
 pub fn optimize_serpentine_parameters(
     p1: Point2D,
     p2: Point2D,
@@ -248,11 +295,7 @@ fn optimize_fast(
                 // Calculate metrics
                 let path_length = calculate_path_length(&test_path);
                 let min_wall_distance = calculate_min_wall_distance(&test_path, box_dims, channel_width);
-                let min_neighbor_distance = if let Some(neighbors) = neighbor_info {
-                    calculate_min_neighbor_distance(&test_path, neighbors, channel_width)
-                } else {
-                    f64::INFINITY
-                };
+                let min_neighbor_distance = neighbor_info.map_or(f64::INFINITY, |neighbors| calculate_min_neighbor_distance(&test_path, neighbors, channel_width));
 
                 // Use penalty-based constraint handling for better optimization
                 let penalty = calculate_constraint_penalty(min_wall_distance, min_neighbor_distance, min_clearance);
@@ -260,7 +303,7 @@ fn optimize_fast(
 
                 // Update best result if this is better
                 if objective_score > best_result.path_length {
-                    let is_valid = penalty < 1.0; // Small penalty tolerance
+                    let is_valid = penalty < constants::PENALTY_TOLERANCE;
                     best_result = OptimizationResult {
                         params: OptimizationParams {
                             wavelength_factor,
@@ -280,7 +323,7 @@ fn optimize_fast(
     }
     
     // If no improvement found, return original parameters
-    if best_result.path_length <= 0.0 {
+    if best_result.path_length <= constants::MIN_PATH_LENGTH_THRESHOLD {
         let original_path = generate_simplified_serpentine_path(
             p1, p2, geometry_config, serpentine_config, box_dims, neighbor_info
         );
@@ -293,11 +336,7 @@ fn optimize_fast(
             },
             path_length: calculate_path_length(&original_path),
             min_wall_distance: calculate_min_wall_distance(&original_path, box_dims, channel_width),
-            min_neighbor_distance: if let Some(neighbors) = neighbor_info {
-                calculate_min_neighbor_distance(&original_path, neighbors, channel_width)
-            } else {
-                f64::INFINITY
-            },
+            min_neighbor_distance: neighbor_info.map_or(f64::INFINITY, |neighbors| calculate_min_neighbor_distance(&original_path, neighbors, channel_width)),
             is_valid: true, // Assume original parameters are valid
             iterations,
             optimization_time: start_time.elapsed(),
@@ -308,17 +347,18 @@ fn optimize_fast(
 }
 
 /// Calculate penalty for constraint violations
+#[must_use]
 fn calculate_constraint_penalty(wall_distance: f64, neighbor_distance: f64, min_clearance: f64) -> f64 {
     let mut penalty = 0.0;
 
     // Heavy penalty for wall clearance violations
     if wall_distance < min_clearance {
-        penalty += (min_clearance - wall_distance) * 1000.0;
+        penalty += (min_clearance - wall_distance) * constants::CONSTRAINT_PENALTY_MULTIPLIER;
     }
 
     // Heavy penalty for neighbor clearance violations
     if neighbor_distance < min_clearance {
-        penalty += (min_clearance - neighbor_distance) * 1000.0;
+        penalty += (min_clearance - neighbor_distance) * constants::CONSTRAINT_PENALTY_MULTIPLIER;
     }
 
     penalty
@@ -342,11 +382,11 @@ fn optimize_nelder_mead(
     ];
 
     // Create initial simplex (triangle in 3D parameter space)
-    let mut simplex = vec![
+    let mut simplex = [
         initial_params,
-        [initial_params[0] * 1.1, initial_params[1], initial_params[2]],
-        [initial_params[0], initial_params[1] * 1.1, initial_params[2]],
-        [initial_params[0], initial_params[1], initial_params[2] * 1.05],
+        [initial_params[0] * constants::WAVELENGTH_PERTURBATION, initial_params[1], initial_params[2]],
+        [initial_params[0], initial_params[1] * constants::WAVE_DENSITY_PERTURBATION, initial_params[2]],
+        [initial_params[0], initial_params[1], initial_params[2] * constants::FILL_FACTOR_PERTURBATION],
     ];
 
     // Evaluate initial simplex
@@ -356,22 +396,26 @@ fn optimize_nelder_mead(
         ))
         .collect();
 
-    let max_iterations = 50; // Reasonable limit for balanced optimization
-    let tolerance = 1e-6;
+    let constants = crate::config_constants::ConstantsRegistry::new();
+    let max_iterations = constants.get_max_optimization_iterations();
+    let tolerance = constants.get_optimization_tolerance();
     let mut iterations = 0;
 
     // Nelder-Mead algorithm parameters
-    let alpha = 1.0;  // Reflection coefficient
-    let gamma = 2.0;  // Expansion coefficient
-    let rho = 0.5;    // Contraction coefficient
-    let sigma = 0.5;  // Shrink coefficient
+    let alpha = constants::REFLECTION_COEFFICIENT;
+    let gamma = constants::EXPANSION_COEFFICIENT;
+    let rho = constants::CONTRACTION_COEFFICIENT;
+    let sigma = constants::SHRINK_COEFFICIENT;
 
     for _ in 0..max_iterations {
         iterations += 1;
 
         // Sort simplex by scores (best to worst)
         let mut indices: Vec<usize> = (0..simplex.len()).collect();
-        indices.sort_by(|&a, &b| scores[b].partial_cmp(&scores[a]).unwrap());
+        indices.sort_by(|&a, &b| {
+            scores[b].partial_cmp(&scores[a])
+                .unwrap_or(std::cmp::Ordering::Equal) // Handle NaN values gracefully
+        });
 
         let best_idx = indices[0];
         let worst_idx = indices[indices.len() - 1];
@@ -454,16 +498,18 @@ fn optimize_nelder_mead(
     // Find best result
     let best_idx = scores.iter()
         .enumerate()
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .max_by(|(_, a), (_, b)| {
+            a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal) // Handle NaN values gracefully
+        })
         .map(|(idx, _)| idx)
-        .unwrap();
+        .unwrap_or(0); // Default to first element if no maximum found
 
     let best_params = simplex[best_idx];
     let best_config = SerpentineConfig {
         wavelength_factor: best_params[0],
         wave_density_factor: best_params[1],
         fill_factor: best_params[2],
-        ..serpentine_config.clone()
+        ..*serpentine_config
     };
 
     // Generate final path and calculate metrics
@@ -495,6 +541,7 @@ fn optimize_nelder_mead(
 }
 
 /// Evaluate objective function for optimization (length - penalties)
+#[must_use]
 fn evaluate_objective_function(
     params: [f64; 3],
     p1: Point2D,
@@ -505,15 +552,15 @@ fn evaluate_objective_function(
     neighbor_info: Option<&[f64]>,
 ) -> f64 {
     // Clamp parameters to valid ranges
-    let wavelength_factor = params[0].clamp(0.5, 5.0);
-    let wave_density_factor = params[1].clamp(0.5, 5.0);
-    let fill_factor = params[2].clamp(0.1, 0.95);
+    let wavelength_factor = params[0].clamp(constants::MIN_WAVELENGTH_FACTOR, constants::MAX_WAVELENGTH_FACTOR);
+    let wave_density_factor = params[1].clamp(constants::MIN_WAVE_DENSITY_FACTOR, constants::MAX_WAVE_DENSITY_FACTOR);
+    let fill_factor = params[2].clamp(constants::MIN_FILL_FACTOR, constants::MAX_FILL_FACTOR);
 
     let test_config = SerpentineConfig {
         wavelength_factor,
         wave_density_factor,
         fill_factor,
-        ..serpentine_config.clone()
+        ..*serpentine_config
     };
 
     // Generate test path
@@ -557,9 +604,9 @@ fn optimize_thorough(
             wave_density_factor: serpentine_config.wave_density_factor,
             fill_factor: serpentine_config.fill_factor,
         },
-        path_length: 0.0,
-        min_wall_distance: 0.0,
-        min_neighbor_distance: 0.0,
+        path_length: constants::MIN_PATH_LENGTH_THRESHOLD,
+        min_wall_distance: constants::MIN_PATH_LENGTH_THRESHOLD,
+        min_neighbor_distance: constants::MIN_PATH_LENGTH_THRESHOLD,
         is_valid: false,
         iterations: 0,
         optimization_time: std::time::Duration::from_secs(0),
@@ -583,7 +630,7 @@ fn optimize_thorough(
             wavelength_factor: start_point[0],
             wave_density_factor: start_point[1],
             fill_factor: start_point[2],
-            ..serpentine_config.clone()
+            ..*serpentine_config
         };
 
         // Run Nelder-Mead from this starting point
@@ -609,6 +656,7 @@ fn optimize_thorough(
 
 
 /// Simplified serpentine path generation for optimization (fallback)
+#[must_use]
 fn generate_simplified_serpentine_path(
     p1: Point2D,
     p2: Point2D,
@@ -622,10 +670,10 @@ fn generate_simplified_serpentine_path(
     
     let dx = p2.0 - p1.0;
     let dy = p2.1 - p1.1;
-    let channel_length = (dx * dx + dy * dy).sqrt();
+    let channel_length = dx.hypot(dy);
     
     // Calculate amplitude based on available space
-    let channel_center_y = (p1.1 + p2.1) / 2.0;
+    let channel_center_y = f64::midpoint(p1.1, p2.1);
     let box_height = box_dims.1;
     
     // Calculate available space considering neighbors
@@ -669,7 +717,7 @@ fn generate_simplified_serpentine_path(
             crate::config::WaveShape::Sine => wave_phase.sin(),
             crate::config::WaveShape::Square => {
                 let sine_value = wave_phase.sin();
-                let sharpness = 5.0; // Controls transition sharpness
+                let sharpness = constants::SQUARE_WAVE_SHARPNESS;
                 (sharpness * sine_value).tanh()
             }
         };
@@ -698,15 +746,17 @@ fn generate_simplified_serpentine_path(
 /// Calculate smooth endpoint envelope for optimization
 ///
 /// Uses smoothstep function for C¹ continuity at endpoints
+#[must_use]
 fn calculate_smooth_endpoint_envelope_for_optimization(t: f64) -> f64 {
     // Smoothstep function: t²(3-2t)
-    t * t * (3.0 - 2.0 * t)
+    t * t * (constants::SMOOTHSTEP_COEFFICIENT_1 - constants::SMOOTHSTEP_COEFFICIENT_2 * t)
 }
 
 /// Calculate improved Gaussian envelope for optimization (helper function)
 ///
 /// This mirrors the logic from SerpentineChannelStrategy but is available
 /// for use in the optimization module.
+#[must_use]
 fn calculate_improved_envelope_for_optimization(
     t: f64,
     channel_length: f64,
@@ -731,9 +781,11 @@ fn calculate_improved_envelope_for_optimization(
 
     // Distance-based normalization
     let distance_normalization = if serpentine_config.adaptive_config.enable_distance_based_scaling {
-        (node_distance / serpentine_config.adaptive_config.node_distance_normalization).min(1.0).max(0.1)
+        (node_distance / serpentine_config.adaptive_config.node_distance_normalization)
+            .min(constants::MAX_DISTANCE_NORMALIZATION)
+            .max(constants::MIN_DISTANCE_NORMALIZATION)
     } else {
-        1.0 // No distance-based scaling when disabled
+        constants::MAX_DISTANCE_NORMALIZATION // No distance-based scaling when disabled
     };
 
     // Calculate effective sigma
@@ -741,10 +793,10 @@ fn calculate_improved_envelope_for_optimization(
     let effective_sigma = base_sigma * distance_normalization * middle_section_factor;
 
     // Center the envelope
-    let center = 0.5;
+    let center = constants::GAUSSIAN_CENTER;
 
     // Calculate Gaussian envelope
-    let gaussian = (-0.5 * ((t - center) / (effective_sigma / channel_length)).powi(2)).exp();
+    let gaussian = (constants::GAUSSIAN_EXPONENT_COEFFICIENT * ((t - center) / (effective_sigma / channel_length)).powi(constants::GAUSSIAN_POWER)).exp();
 
     // For middle sections, add a plateau in the center
     if is_horizontal && horizontal_ratio > serpentine_config.adaptive_config.horizontal_ratio_threshold {

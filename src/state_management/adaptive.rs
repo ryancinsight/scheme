@@ -8,7 +8,7 @@ use crate::{
     config::GeometryConfig,
     geometry::Point2D,
     state_management::bilateral_symmetry::{SymmetryContext, BilateralSymmetryConfig, ChannelPositionClassification},
-    error::{SchemeResult, SchemeError, ConfigurationError},
+    // Removed unused error imports
 };
 use std::fmt::Debug;
 
@@ -39,6 +39,7 @@ pub struct ChannelGenerationContext {
 
 impl ChannelGenerationContext {
     /// Create a new channel generation context
+    #[must_use]
     pub fn new(
         geometry_config: GeometryConfig,
         box_dims: (f64, f64),
@@ -57,38 +58,44 @@ impl ChannelGenerationContext {
     }
     
     /// Set channel endpoints
-    pub fn with_endpoints(mut self, start: Point2D, end: Point2D) -> Self {
+    #[must_use]
+    pub const fn with_endpoints(mut self, start: Point2D, end: Point2D) -> Self {
         self.channel_endpoints = (start, end);
         self
     }
     
     /// Set channel index
-    pub fn with_index(mut self, index: usize) -> Self {
+    #[must_use]
+    pub const fn with_index(mut self, index: usize) -> Self {
         self.channel_index = index;
         self
     }
     
     /// Add custom data
+    #[must_use]
     pub fn with_custom_data(mut self, key: &str, value: f64) -> Self {
         self.custom_data.insert(key.to_string(), value);
         self
     }
     
     /// Get channel length
+    #[must_use]
     pub fn channel_length(&self) -> f64 {
         let (start, end) = self.channel_endpoints;
         let dx = end.0 - start.0;
         let dy = end.1 - start.1;
-        (dx * dx + dy * dy).sqrt()
+        dx.hypot(dy)
     }
     
     /// Get channel center point
-    pub fn channel_center(&self) -> Point2D {
+    #[must_use]
+    pub const fn channel_center(&self) -> Point2D {
         let (start, end) = self.channel_endpoints;
-        ((start.0 + end.0) / 2.0, (start.1 + end.1) / 2.0)
+        (f64::midpoint(start.0, end.0), f64::midpoint(start.1, end.1))
     }
     
     /// Check if channel is mostly horizontal
+    #[must_use]
     pub fn is_horizontal(&self) -> bool {
         let (start, end) = self.channel_endpoints;
         let dx = (end.0 - start.0).abs();
@@ -99,6 +106,7 @@ impl ChannelGenerationContext {
     /// Get minimum distance to neighbors
     ///
     /// Returns None if no neighbors exist or if distance calculation fails
+    #[must_use]
     pub fn min_neighbor_distance(&self) -> Option<f64> {
         let center = self.channel_center();
         self.neighbor_info.as_ref().and_then(|neighbors| {
@@ -121,6 +129,7 @@ impl ChannelGenerationContext {
     }
     
     /// Get distance to walls
+    #[must_use]
     pub fn wall_distances(&self) -> (f64, f64, f64, f64) {
         let center = self.channel_center();
         let (width, height) = self.box_dims;
@@ -135,6 +144,7 @@ impl ChannelGenerationContext {
     }
     
     /// Get minimum distance to any wall
+    #[must_use]
     pub fn min_wall_distance(&self) -> f64 {
         let (left, right, bottom, top) = self.wall_distances();
         left.min(right).min(bottom).min(top)
@@ -160,17 +170,17 @@ pub enum AdaptationError {
 impl std::fmt::Display for AdaptationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AdaptationError::InvalidContext { reason } => {
-                write!(f, "Invalid adaptation context: {}", reason)
+            Self::InvalidContext { reason } => {
+                write!(f, "Invalid adaptation context: {reason}")
             }
-            AdaptationError::CalculationFailed { parameter, reason } => {
-                write!(f, "Adaptation calculation failed for parameter '{}': {}", parameter, reason)
+            Self::CalculationFailed { parameter, reason } => {
+                write!(f, "Adaptation calculation failed for parameter '{parameter}': {reason}")
             }
-            AdaptationError::InvalidResult { value, constraint } => {
-                write!(f, "Adaptation result '{}' violates constraint: {}", value, constraint)
+            Self::InvalidResult { value, constraint } => {
+                write!(f, "Adaptation result '{value}' violates constraint: {constraint}")
             }
-            AdaptationError::DependencyMissing { dependency } => {
-                write!(f, "Required dependency '{}' not available for adaptation", dependency)
+            Self::DependencyMissing { dependency } => {
+                write!(f, "Required dependency '{dependency}' not available for adaptation")
             }
         }
     }
@@ -185,7 +195,7 @@ pub trait AdaptiveParameterCompat<T, Context>: AdaptiveParameter<T, Context> {
     where
         T: Clone,
     {
-        match self.adapt(base_value.clone(), context) {
+        match self.adapt(base_value, context) {
             Ok(adapted) => adapted,
             Err(_) => {
                 #[cfg(debug_assertions)]
@@ -252,7 +262,10 @@ where
 pub trait AdaptiveParameter<T, Context>: Debug + Send + Sync {
     /// Calculate adaptive value based on context
     ///
-    /// Returns the adapted value or an error if adaptation fails
+    /// # Errors
+    ///
+    /// Returns an error if adaptation fails due to invalid context, calculation errors,
+    /// constraint violations, or missing dependencies.
     fn adapt(&self, base_value: T, context: &Context) -> Result<T, AdaptationError>;
 
     /// Check if adaptation is enabled
@@ -262,6 +275,10 @@ pub trait AdaptiveParameter<T, Context>: Debug + Send + Sync {
     fn adaptation_description(&self) -> String;
 
     /// Validate that the context is suitable for adaptation
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the context is invalid or unsuitable for adaptation.
     fn validate_context(&self, context: &Context) -> Result<(), AdaptationError> {
         // Default implementation - can be overridden
         let _ = context; // Suppress unused parameter warning
@@ -692,22 +709,22 @@ impl SymmetryAwareAmplitudeAdapter {
             ChannelPositionClassification::UpperLeft | ChannelPositionClassification::UpperRight => {
                 // Upper channels: ensure consistent amplitude for bilateral symmetry
                 if self.enable_cross_quadrant_matching {
-                    adjusted_amplitude *= 1.0 + (self.symmetry_enforcement_factor * 0.1);
+                    adjusted_amplitude *= self.symmetry_enforcement_factor.mul_add(0.1, 1.0);
                 }
             }
             ChannelPositionClassification::LowerLeft | ChannelPositionClassification::LowerRight => {
                 // Lower channels: mirror upper channel amplitude adjustments
                 if self.enable_cross_quadrant_matching {
-                    adjusted_amplitude *= 1.0 + (self.symmetry_enforcement_factor * 0.1);
+                    adjusted_amplitude *= self.symmetry_enforcement_factor.mul_add(0.1, 1.0);
                 }
             }
             ChannelPositionClassification::OnHorizontalCenter => {
                 // Channels on horizontal centerline: use neutral amplitude
-                adjusted_amplitude *= 1.0 - (self.symmetry_enforcement_factor * 0.05);
+                adjusted_amplitude *= self.symmetry_enforcement_factor.mul_add(-0.05, 1.0);
             }
             _ => {
                 // Other positions: minimal adjustment
-                adjusted_amplitude *= 1.0 + (self.symmetry_enforcement_factor * 0.02);
+                adjusted_amplitude *= self.symmetry_enforcement_factor.mul_add(0.02, 1.0);
             }
         }
 
@@ -820,7 +837,7 @@ impl SymmetryAwareWavelengthAdapter {
             }
             _ => {
                 // Other positions: minimal synchronization
-                synchronized_wavelength *= 0.95 + (self.wavelength_sync_factor * 0.05);
+                synchronized_wavelength *= self.wavelength_sync_factor.mul_add(0.05, 0.95);
             }
         }
 

@@ -92,6 +92,7 @@ pub struct ParameterRegistry {
     symmetry_manager: SymmetryParameterManager,
     
     /// Global validation rules
+    #[allow(dead_code)] // Part of comprehensive parameter registry framework
     global_validation_rules: ValidationRuleSet,
     
     /// Whether validation is enabled
@@ -122,19 +123,20 @@ impl ParameterRegistry {
     
     /// Create a registry with default configuration
     pub fn with_defaults() -> StateManagementResult<Self> {
-        let mut registry = Self::new()?;
+        let registry = Self::new()?;
         registry.initialize_default_validation_rules();
         Ok(registry)
     }
     
     /// Initialize default validation rules
-    fn initialize_default_validation_rules(&mut self) {
+    fn initialize_default_validation_rules(&self) {
         // Add cross-domain validation rules here if needed
         // For now, each manager handles its own validation
     }
     
     /// Get the serpentine parameter manager
-    pub fn serpentine(&self) -> &SerpentineParameterManager {
+    #[must_use]
+    pub const fn serpentine(&self) -> &SerpentineParameterManager {
         &self.serpentine_manager
     }
     
@@ -145,7 +147,8 @@ impl ParameterRegistry {
     }
     
     /// Get the arc parameter manager
-    pub fn arc(&self) -> &ArcParameterManager {
+    #[must_use]
+    pub const fn arc(&self) -> &ArcParameterManager {
         &self.arc_manager
     }
     
@@ -156,7 +159,8 @@ impl ParameterRegistry {
     }
     
     /// Get the geometry parameter manager
-    pub fn geometry(&self) -> &GeometryParameterManager {
+    #[must_use]
+    pub const fn geometry(&self) -> &GeometryParameterManager {
         &self.geometry_manager
     }
     
@@ -167,12 +171,14 @@ impl ParameterRegistry {
     }
     
     /// Get the collision parameter manager
-    pub fn collision(&self) -> &CollisionParameterManager {
+    #[must_use]
+    pub const fn collision(&self) -> &CollisionParameterManager {
         &self.collision_manager
     }
     
     /// Get the symmetry parameter manager
-    pub fn symmetry(&self) -> &SymmetryParameterManager {
+    #[must_use]
+    pub const fn symmetry(&self) -> &SymmetryParameterManager {
         &self.symmetry_manager
     }
     
@@ -337,6 +343,21 @@ impl ParameterRegistry {
 
 impl Default for ParameterRegistry {
     fn default() -> Self {
-        Self::with_defaults().expect("Failed to create default parameter registry")
+        // Create a minimal registry if with_defaults() fails
+        // This ensures Default never panics, following Rust best practices
+        Self::with_defaults().unwrap_or_else(|_| {
+            // Fallback to a minimal registry that should always succeed
+            ParameterRegistry {
+                serpentine_manager: SerpentineParameterManager::new(),
+                arc_manager: ArcParameterManager::new(),
+                geometry_manager: GeometryParameterManager::new(),
+                collision_manager: CollisionParameterManager::new(),
+                symmetry_manager: SymmetryParameterManager::new(),
+                global_validation_rules: ValidationRuleSet::new(),
+                validation_enabled: true,
+                is_locked: false,
+                version: 0,
+            }
+        })
     }
 }

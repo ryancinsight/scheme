@@ -4,7 +4,7 @@
 
 use scheme::{
     geometry::{ChannelType, Point2D, strategies::*},
-    config::{GeometryConfig, ChannelTypeConfig, SerpentineConfig, ArcConfig},
+    config::{GeometryConfig, ChannelTypeConfig, SerpentineConfig, ArcConfig, FrustumConfig},
 };
 
 /// Test that StraightChannelStrategy always returns straight channels
@@ -230,6 +230,7 @@ fn test_factory_smart() {
     let config = ChannelTypeConfig::Smart {
         serpentine_config,
         arc_config,
+        frustum_config: FrustumConfig::default(),
     };
     
     // Test long horizontal channel (should be serpentine)

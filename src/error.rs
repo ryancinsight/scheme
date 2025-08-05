@@ -90,6 +90,10 @@ pub enum ConfigurationError {
     #[error("Invalid arc configuration: {field} = {value}. {constraint}")]
     InvalidArcConfig { field: String, value: f64, constraint: String },
 
+    /// Invalid frustum configuration
+    #[error("Invalid frustum configuration: {field} = {value}. {constraint}")]
+    InvalidFrustumConfig { field: String, value: f64, constraint: String },
+
     /// Invalid geometry generation configuration
     #[error("Invalid geometry generation configuration: {field}. {constraint}")]
     InvalidGenerationConfig { field: String, constraint: String },
@@ -217,6 +221,15 @@ impl ConfigurationError {
     /// Create an invalid arc config error
     pub fn invalid_arc_config(field: &str, value: f64, constraint: &str) -> Self {
         Self::InvalidArcConfig {
+            field: field.to_string(),
+            value,
+            constraint: constraint.to_string(),
+        }
+    }
+
+    /// Create an invalid frustum config error
+    pub fn invalid_frustum_config(field: &str, value: f64, constraint: &str) -> Self {
+        Self::InvalidFrustumConfig {
             field: field.to_string(),
             value,
             constraint: constraint.to_string(),

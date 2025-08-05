@@ -93,7 +93,7 @@ pub struct RenderConfig {
     pub show_grid: bool,
     /// Margin around the content as a fraction of the total size
     pub margin_fraction: f64,
-    /// Style for channel lines
+    /// Style for channel lines (default for all channel types)
     pub channel_style: LineStyle,
     /// Style for boundary box lines
     pub boundary_style: LineStyle,
@@ -101,6 +101,44 @@ pub struct RenderConfig {
     pub axis_label_style: TextStyle,
     /// Style for the title
     pub title_style: TextStyle,
+    /// Channel type-specific styling
+    pub channel_type_styles: ChannelTypeStyles,
+}
+
+/// Channel type-specific styling configuration
+///
+/// This struct allows different visual styles for different channel types,
+/// enabling easy identification of channel types in visualizations.
+#[derive(Debug, Clone)]
+pub struct ChannelTypeStyles {
+    /// Style for straight channels (Straight, SmoothStraight)
+    pub straight_style: LineStyle,
+    /// Style for curved channels (Serpentine, Arc)
+    pub curved_style: LineStyle,
+    /// Style for tapered channels (Frustum)
+    pub tapered_style: LineStyle,
+}
+
+impl Default for ChannelTypeStyles {
+    fn default() -> Self {
+        Self {
+            straight_style: LineStyle::solid(Color::rgb(0, 0, 0), 1.0), // Black
+            curved_style: LineStyle::solid(Color::rgb(0, 100, 200), 1.5), // Blue
+            tapered_style: LineStyle::solid(Color::rgb(200, 50, 50), 2.0), // Red - distinctive for frustum
+        }
+    }
+}
+
+impl ChannelTypeStyles {
+    /// Get the appropriate line style for a given channel type category
+    pub fn get_style(&self, category: crate::geometry::ChannelTypeCategory) -> &LineStyle {
+        use crate::geometry::ChannelTypeCategory;
+        match category {
+            ChannelTypeCategory::Straight => &self.straight_style,
+            ChannelTypeCategory::Curved => &self.curved_style,
+            ChannelTypeCategory::Tapered => &self.tapered_style,
+        }
+    }
 }
 
 impl Default for RenderConfig {
@@ -133,6 +171,7 @@ impl Default for RenderConfig {
                 font_size: 24.0,
                 font_family: "sans-serif".to_string(),
             },
+            channel_type_styles: ChannelTypeStyles::default(),
         }
     }
 }

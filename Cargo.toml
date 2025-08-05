@@ -11,6 +11,8 @@ categories = ["science", "visualization"]
 [dependencies]
 plotters = "0.3.5"
 thiserror = "1.0.56"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 # Comprehensive Examples - New consolidated examples
 [[example]]
@@ -42,6 +44,18 @@ path = "examples/unified_generator_demo.rs"
 [[example]]
 name = "configuration_validation_demo"
 path = "examples/configuration_validation_demo.rs"
+
+[[example]]
+name = "comprehensive_json_serialization_test"
+path = "examples/comprehensive_json_serialization_test.rs"
+
+[[example]]
+name = "frustum_channel_demo"
+path = "examples/frustum_channel_demo.rs"
+
+[[example]]
+name = "colored_channel_demo"
+path = "examples/colored_channel_demo.rs"
 
 
 
@@ -84,5 +98,16 @@ harness = false
 [[bench]]
 name = "metadata_benchmarks"
 harness = false
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+
+# Allow specific lints that are too noisy or not applicable
+too_many_lines = "allow"
+multiple_crate_versions = "allow"  # Common in dependency trees
+cargo_common_metadata = "allow"    # Not critical for internal projects
 
 [features]

@@ -29,7 +29,7 @@ pub trait Metadata: Any + Debug + Send + Sync {
 /// Metadata storage container
 ///
 /// This container provides type-safe storage and retrieval of metadata
-/// using TypeId as keys for efficient lookup.
+/// using `TypeId` as keys for efficient lookup.
 #[derive(Debug)]
 pub struct MetadataContainer {
     data: HashMap<TypeId, Box<dyn Metadata>>,
@@ -37,6 +37,7 @@ pub struct MetadataContainer {
 
 impl MetadataContainer {
     /// Create a new empty metadata container
+    #[must_use]
     pub fn new() -> Self {
         Self {
             data: HashMap::new(),
@@ -49,6 +50,7 @@ impl MetadataContainer {
     }
     
     /// Get metadata of a specific type
+    #[must_use]
     pub fn get<T: Metadata + 'static>(&self) -> Option<&T> {
         self.data.get(&TypeId::of::<T>())
             .and_then(|boxed| boxed.as_any().downcast_ref::<T>())
@@ -66,11 +68,13 @@ impl MetadataContainer {
     }
     
     /// Check if metadata of a specific type exists
+    #[must_use]
     pub fn contains<T: Metadata + 'static>(&self) -> bool {
         self.data.contains_key(&TypeId::of::<T>())
     }
     
     /// Get all metadata type names (for debugging)
+    #[must_use]
     pub fn metadata_types(&self) -> Vec<&'static str> {
         self.data.values()
             .map(|metadata| metadata.metadata_type_name())
@@ -78,11 +82,13 @@ impl MetadataContainer {
     }
     
     /// Check if container is empty
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
     
     /// Get number of metadata entries
+    #[must_use]
     pub fn len(&self) -> usize {
         self.data.len()
     }
@@ -90,7 +96,7 @@ impl MetadataContainer {
 
 impl Clone for MetadataContainer {
     fn clone(&self) -> Self {
-        let mut new_container = MetadataContainer::new();
+        let mut new_container = Self::new();
         for (type_id, metadata) in &self.data {
             new_container.data.insert(*type_id, metadata.clone_metadata());
         }
@@ -231,7 +237,7 @@ impl Metadata for OptimizationMetadata {
 }
 
 /// Runtime performance metadata
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PerformanceMetadata {
     /// Generation time in microseconds
     pub generation_time_us: u64,

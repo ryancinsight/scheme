@@ -5,7 +5,7 @@
 
 use crate::state_management::{
     constraints::ParameterConstraints,
-    adaptive::{AdaptiveParameter, AdaptiveParameterCompat, ChannelGenerationContext, AdaptationError},
+    adaptive::{AdaptiveParameter, ChannelGenerationContext, AdaptationError},
     errors::{ParameterError, ParameterResult},
 };
 use std::fmt::Debug;

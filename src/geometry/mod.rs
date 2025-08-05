@@ -32,7 +32,7 @@ pub mod types;
 
 pub use self::{
     generator::{create_geometry, create_geometry_with_metadata, MetadataConfig},
-    types::{Channel, ChannelSystem, ChannelType, Node, Point2D, SplitType},
+    types::{Channel, ChannelSystem, ChannelType, ChannelTypeCategory, Node, Point2D, SplitType},
 };
 
 /// Alias for Point2D for backward compatibility and convenience

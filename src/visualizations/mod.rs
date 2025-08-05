@@ -25,5 +25,5 @@ pub mod traits;
 pub mod plotters_backend;
 
 pub use schematic::plot_geometry;
-pub use traits::{SchematicRenderer, RenderConfig, OutputFormat, Color, LineStyle, TextStyle};
+pub use traits::{SchematicRenderer, RenderConfig, OutputFormat, Color, LineStyle, TextStyle, ChannelTypeStyles};
 pub use plotters_backend::{PlottersRenderer, create_plotters_renderer, plot_geometry_with_plotters};

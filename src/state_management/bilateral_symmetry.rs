@@ -5,16 +5,13 @@
 //! the adaptive parameter system to provide context-aware symmetry adjustments while
 //! following SOLID, CUPID, GRASP, and all other specified design principles.
 
+#![allow(unused_imports)] // Allow unused imports for comprehensive framework
+
 use crate::{
-    geometry::Point2D,
+    geometry::Point2D, // May be used in future symmetry operations
     state_management::{
         adaptive::{ChannelGenerationContext, AdaptiveParameter, AdaptationError},
-        parameters::{ConfigurableParameter, ParameterMetadata},
-        constraints::ParameterConstraints,
-        errors::{ParameterError, ParameterResult},
     },
-    config_constants::ConstantsRegistry,
-    error::{SchemeResult, SchemeError, ConfigurationError},
 };
 use std::collections::HashMap;
 

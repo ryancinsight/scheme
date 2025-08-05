@@ -233,6 +233,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Colored Visualization
+
+Scheme now features **colored channel type differentiation** for easy visual identification:
+
+- **🖤 Straight Channels**: Black (Straight, SmoothStraight)
+- **🔵 Curved Channels**: Blue (Serpentine, Arc)
+- **🔴 Tapered Channels**: Red (Frustum)
+
+### Custom Color Configuration
+
+You can customize colors for different channel types:
+
+```rust
+use scheme::visualizations::{RenderConfig, ChannelTypeStyles, LineStyle, Color};
+
+let custom_styles = ChannelTypeStyles {
+    straight_style: LineStyle::solid(Color::rgb(100, 100, 100), 1.0), // Gray
+    curved_style: LineStyle::solid(Color::rgb(0, 150, 0), 2.0),       // Green
+    tapered_style: LineStyle::solid(Color::rgb(255, 100, 0), 3.0),    // Orange
+};
+
+let mut config = RenderConfig::default();
+config.channel_type_styles = custom_styles;
+
+scheme::visualizations::schematic::plot_geometry_with_config(
+    &system, "custom_colors.svg", &config
+)?;
+```
+
 ## Examples
 
 The library includes comprehensive examples organized by functionality:
@@ -243,6 +272,8 @@ The library includes comprehensive examples organized by functionality:
 - `comprehensive_serpentine_demo` - Complete serpentine channel showcase with wave shapes, phase control, and optimization
 - `comprehensive_arc_demo` - Complete arc channel demonstration with curvature control and smart selection
 - `comprehensive_arc_collision_prevention_demo` - Arc collision prevention and proximity detection showcase
+- `frustum_channel_demo` - Complete frustum (tapered) channel demonstration with different taper profiles
+- `colored_channel_demo` - Colored visualization demonstration showing different channel types in distinct colors
 
 ### 🔧 **Specialized Examples**
 

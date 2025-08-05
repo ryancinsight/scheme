@@ -19,21 +19,12 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 /// Configuration for metadata generation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MetadataConfig {
     /// Whether to track performance metrics during generation
     pub track_performance: bool,
     /// Whether to track optimization metadata for serpentine channels
     pub track_optimization: bool,
-}
-
-impl Default for MetadataConfig {
-    fn default() -> Self {
-        Self {
-            track_performance: false,
-            track_optimization: false,
-        }
-    }
 }
 
 /// Internal geometry generator that builds channel systems incrementally
@@ -205,7 +196,7 @@ impl GeometryGenerator {
                 if let Some(start_time) = self.generation_start_time {
                     let path_points = match &final_channel_type {
                         ChannelType::Straight => 2,
-                        ChannelType::SmoothStraight { path } | ChannelType::Serpentine { path } | ChannelType::Arc { path } => path.len(),
+                        ChannelType::SmoothStraight { path } | ChannelType::Serpentine { path } | ChannelType::Arc { path } | ChannelType::Frustum { path, .. } => path.len(),
                     };
 
                     let perf_metadata = PerformanceMetadata {
@@ -267,7 +258,7 @@ impl GeometryGenerator {
         // Collect y-coordinates for dynamic amplitude calculation
         let mut y_coords_for_amplitude: Vec<f64> = Vec::with_capacity(first_half_lines.len());
         for (p1, p2) in &first_half_lines {
-            y_coords_for_amplitude.push((p1.1 + p2.1) / 2.0);
+            y_coords_for_amplitude.push(f64::midpoint(p1.1, p2.1));
         }
 
         for (p1, p2) in &first_half_lines {
@@ -282,10 +273,10 @@ impl GeometryGenerator {
 
     fn generate_first_half(&self, splits: &[SplitType]) -> Vec<(Point2D, Point2D)> {
         let (length, width) = self.box_dims;
-        let effective_width = width - (2.0 * self.config.wall_clearance);
+        let effective_width = (-2.0f64).mul_add(self.config.wall_clearance, width);
         let half_l = length / 2.0;
         let num_splits = splits.len() as u32;
-        let num_segments_per_half = num_splits as f64 * 2.0 + 1.0;
+        let num_segments_per_half = f64::from(num_splits).mul_add(2.0, 1.0);
         let dx = half_l / num_segments_per_half;
 
         let mut y_coords: Vec<f64> = vec![width / 2.0];
@@ -299,8 +290,8 @@ impl GeometryGenerator {
             }
             current_x += dx;
 
-            let (next_y_coords, next_y_ranges, new_lines) = 
-                self.apply_split(split_type, &y_coords, &y_ranges, current_x, dx);
+            let (next_y_coords, next_y_ranges, new_lines) =
+                Self::apply_split(*split_type, &y_coords, &y_ranges, current_x, dx);
             
             y_coords = next_y_coords;
             y_ranges = next_y_ranges;
@@ -317,8 +308,7 @@ impl GeometryGenerator {
     }
 
     fn apply_split(
-        &self,
-        split_type: &SplitType,
+        split_type: SplitType,
         y_coords: &[f64],
         y_ranges: &[f64],
         current_x: f64,
@@ -346,8 +336,7 @@ impl GeometryGenerator {
     }
 
     fn apply_merge(
-        &self,
-        split_type: &SplitType,
+        split_type: SplitType,
         y_coords: &[f64],
         y_ranges: &[f64],
         current_x: f64,
@@ -387,10 +376,10 @@ impl GeometryGenerator {
 
     fn generate_second_half(&mut self, splits: &[SplitType]) {
         let (length, width) = self.box_dims;
-        let effective_width = width - (2.0 * self.config.wall_clearance);
+        let effective_width = (-2.0f64).mul_add(self.config.wall_clearance, width);
         let half_l = length / 2.0;
         let num_splits = splits.len() as u32;
-        let num_segments_per_half = num_splits as f64 * 2.0 + 1.0;
+        let num_segments_per_half = f64::from(num_splits).mul_add(2.0, 1.0);
         let dx = half_l / num_segments_per_half;
 
         // Calculate the final y-coordinates at the center (end of first half)
@@ -401,7 +390,7 @@ impl GeometryGenerator {
         // Apply all splits to get the final state
         for split_type in splits {
             let (next_y_coords, next_y_ranges, _) =
-                self.apply_split(split_type, &y_coords, &y_ranges, 0.0, dx);
+                Self::apply_split(*split_type, &y_coords, &y_ranges, 0.0, dx);
             y_coords = next_y_coords;
             y_ranges = next_y_ranges;
         }
@@ -420,7 +409,7 @@ impl GeometryGenerator {
 
             // Apply merge (reverse of split)
             let (next_y_coords, next_y_ranges, new_lines) =
-                self.apply_merge(split_type, &y_coords, &y_ranges, current_x, dx);
+                Self::apply_merge(*split_type, &y_coords, &y_ranges, current_x, dx);
 
             y_coords = next_y_coords;
             y_ranges = next_y_ranges;
@@ -437,7 +426,7 @@ impl GeometryGenerator {
         // Collect y-coordinates for amplitude calculation
         let mut y_coords_for_amplitude: Vec<f64> = Vec::with_capacity(lines.len());
         for (p1, p2) in &lines {
-            y_coords_for_amplitude.push((p1.1 + p2.1) / 2.0);
+            y_coords_for_amplitude.push(f64::midpoint(p1.1, p2.1));
         }
 
         // Add all the second half channels
@@ -495,13 +484,14 @@ impl GeometryGenerator {
 ///     &ChannelTypeConfig::AllStraight,
 /// );
 /// ```
+#[must_use]
 pub fn create_geometry(
     box_dims: (f64, f64),
     splits: &[SplitType],
     config: &GeometryConfig,
     channel_type_config: &ChannelTypeConfig,
 ) -> ChannelSystem {
-    let total_branches = splits.iter().map(|s| s.branch_count()).product::<usize>().max(1);
+    let total_branches = splits.iter().map(SplitType::branch_count).product::<usize>().max(1);
     GeometryGenerator::new(box_dims, *config, *channel_type_config, total_branches).generate(splits)
 }
 
@@ -544,6 +534,7 @@ pub fn create_geometry(
 ///     &metadata_config,
 /// );
 /// ```
+#[must_use]
 pub fn create_geometry_with_metadata(
     box_dims: (f64, f64),
     splits: &[SplitType],
@@ -551,7 +542,7 @@ pub fn create_geometry_with_metadata(
     channel_type_config: &ChannelTypeConfig,
     metadata_config: &MetadataConfig,
 ) -> ChannelSystem {
-    let total_branches = splits.iter().map(|s| s.branch_count()).product::<usize>().max(1);
+    let total_branches = splits.iter().map(SplitType::branch_count).product::<usize>().max(1);
     GeometryGenerator::new_with_metadata(
         box_dims,
         *config,

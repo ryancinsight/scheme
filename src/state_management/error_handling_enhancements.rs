@@ -10,7 +10,7 @@ use crate::{
         adaptive::{AdaptationError, ChannelGenerationContext},
         parameters::ConfigurableParameter,
     },
-    error::{SchemeResult, SchemeError, ConfigurationError},
+    // Removed unused error imports
 };
 use std::fmt::Debug;
 
@@ -208,7 +208,7 @@ impl ParameterValidator {
     /// Validate adaptation context
     pub fn validate_adaptation_context(
         context: &ChannelGenerationContext,
-        parameter_name: &str,
+        _parameter_name: &str,
     ) -> Result<(), AdaptationError> {
         // Validate basic context properties
         if context.total_branches == 0 {

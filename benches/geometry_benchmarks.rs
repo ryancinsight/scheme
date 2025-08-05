@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
 use scheme::{
     geometry::{generator::create_geometry, SplitType},
-    config::{GeometryConfig, ChannelTypeConfig, SerpentineConfig, ArcConfig},
+    config::{GeometryConfig, ChannelTypeConfig, SerpentineConfig, ArcConfig, FrustumConfig},
 };
 
 /// Benchmark geometry generation for different pattern complexities
@@ -101,6 +101,7 @@ fn bench_channel_strategies(c: &mut Criterion) {
         ("smart_mixed", ChannelTypeConfig::Smart {
             serpentine_config: SerpentineConfig::default(),
             arc_config: ArcConfig::default(),
+            frustum_config: FrustumConfig::default(),
         }),
         ("mixed_by_position", ChannelTypeConfig::MixedByPosition {
             middle_zone_fraction: 0.4,
@@ -154,6 +155,7 @@ fn bench_memory_usage(c: &mut Criterion) {
                     black_box(&ChannelTypeConfig::Smart {
                         serpentine_config: SerpentineConfig::default(),
                         arc_config: ArcConfig::default(),
+                        frustum_config: FrustumConfig::default(),
                     }),
                 );
                 // Force evaluation to measure actual memory allocation

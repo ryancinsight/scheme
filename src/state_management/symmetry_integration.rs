@@ -40,8 +40,15 @@ pub struct SymmetryIntegratedParameterManager {
     pub constants: ConstantsRegistry,
 }
 
+impl Default for SymmetryIntegratedParameterManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SymmetryIntegratedParameterManager {
     /// Create a new symmetry-integrated parameter manager
+    #[must_use]
     pub fn new() -> Self {
         let symmetry_config = BilateralSymmetryConfig::default();
         let phase_calculator = BilateralPhaseDirectionCalculator::new(symmetry_config.clone());
@@ -56,6 +63,7 @@ impl SymmetryIntegratedParameterManager {
     }
     
     /// Create with custom symmetry configuration
+    #[must_use]
     pub fn with_symmetry_config(config: BilateralSymmetryConfig) -> Self {
         let phase_calculator = BilateralPhaseDirectionCalculator::new(config.clone());
         
@@ -69,6 +77,11 @@ impl SymmetryIntegratedParameterManager {
     }
     
     /// Get symmetry-aware serpentine parameters
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if parameter generation fails due to invalid symmetry constraints
+    /// or computational issues during parameter calculation.
     pub fn get_serpentine_parameters(
         &self,
         context: &ChannelGenerationContext,
@@ -78,6 +91,11 @@ impl SymmetryIntegratedParameterManager {
     }
     
     /// Get symmetry-aware arc parameters
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if parameter generation fails due to invalid symmetry constraints
+    /// or computational issues during parameter calculation.
     pub fn get_arc_parameters(
         &self,
         context: &ChannelGenerationContext,
@@ -87,6 +105,12 @@ impl SymmetryIntegratedParameterManager {
     }
     
     /// Validate bilateral symmetry for a set of channels
+    /// Validate bilateral symmetry across multiple channel contexts
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if symmetry validation fails due to mismatched parameters,
+    /// invalid channel configurations, or computational issues during validation.
     pub fn validate_bilateral_symmetry(
         &self,
         channel_contexts: &[ChannelGenerationContext],
@@ -99,8 +123,8 @@ impl SymmetryIntegratedParameterManager {
         for context in channel_contexts {
             let symmetry_context = SymmetryContext::new(context.clone(), self.symmetry_config.clone());
             position_groups
-                .entry(symmetry_context.position_classification.clone())
-                .or_insert_with(Vec::new)
+                .entry(symmetry_context.position_classification)
+                .or_default()
                 .push(symmetry_context);
         }
         
@@ -133,8 +157,8 @@ impl SymmetryIntegratedParameterManager {
                     }))?;
                 
                 validation_result.add_bilateral_check(
-                    left_ctx.position_classification.clone(),
-                    right_ctx.position_classification.clone(),
+                    left_ctx.position_classification,
+                    right_ctx.position_classification,
                     is_symmetric,
                 );
             }
@@ -154,8 +178,8 @@ impl SymmetryIntegratedParameterManager {
                     }))?;
                 
                 validation_result.add_bilateral_check(
-                    left_ctx.position_classification.clone(),
-                    right_ctx.position_classification.clone(),
+                    left_ctx.position_classification,
+                    right_ctx.position_classification,
                     is_symmetric,
                 );
             }
@@ -184,8 +208,8 @@ impl SymmetryIntegratedParameterManager {
                     }))?;
                 
                 validation_result.add_horizontal_check(
-                    upper_ctx.position_classification.clone(),
-                    lower_ctx.position_classification.clone(),
+                    upper_ctx.position_classification,
+                    lower_ctx.position_classification,
                     is_symmetric,
                 );
             }
@@ -205,8 +229,8 @@ impl SymmetryIntegratedParameterManager {
                     }))?;
                 
                 validation_result.add_horizontal_check(
-                    upper_ctx.position_classification.clone(),
-                    lower_ctx.position_classification.clone(),
+                    upper_ctx.position_classification,
+                    lower_ctx.position_classification,
                     is_symmetric,
                 );
             }
@@ -234,6 +258,7 @@ pub struct EnhancedSerpentineManager {
 
 impl EnhancedSerpentineManager {
     /// Create a new enhanced serpentine manager
+    #[must_use]
     pub fn new(symmetry_config: BilateralSymmetryConfig) -> Self {
         Self {
             base_manager: SerpentineParameterManager::new(),
@@ -244,6 +269,12 @@ impl EnhancedSerpentineManager {
     }
     
     /// Get symmetry-aware parameters
+    /// Get symmetry-aware parameters for serpentine channels
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if parameter generation fails due to invalid symmetry constraints
+    /// or computational issues during parameter calculation.
     pub fn get_symmetry_aware_parameters(
         &self,
         symmetry_context: &SymmetryContext,
@@ -273,7 +304,7 @@ impl EnhancedSerpentineManager {
             amplitude: adapted_amplitude,
             wavelength: adapted_wavelength,
             phase_direction: 0.0, // Will be calculated by phase calculator
-            position_classification: symmetry_context.position_classification.clone(),
+            position_classification: symmetry_context.position_classification,
             symmetry_enforcement_applied: true,
         })
     }
@@ -291,6 +322,7 @@ pub struct EnhancedArcManager {
 
 impl EnhancedArcManager {
     /// Create a new enhanced arc manager
+    #[must_use]
     pub fn new(symmetry_config: BilateralSymmetryConfig) -> Self {
         Self {
             base_manager: ArcParameterManager::new(),
@@ -299,6 +331,12 @@ impl EnhancedArcManager {
     }
     
     /// Get symmetry-aware parameters for arc channels
+    /// Get symmetry-aware parameters for arc channels
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if parameter generation fails due to invalid symmetry constraints
+    /// or computational issues during parameter calculation.
     pub fn get_symmetry_aware_parameters(
         &self,
         symmetry_context: &SymmetryContext,
@@ -312,7 +350,7 @@ impl EnhancedArcManager {
                 base_curvature * 1.0 // Standard curvature
             }
             ChannelPositionClassification::UpperRight | ChannelPositionClassification::LowerLeft => {
-                base_curvature * -1.0 // Mirrored curvature for bilateral symmetry
+                -base_curvature // Mirrored curvature for bilateral symmetry
             }
             _ => base_curvature, // Neutral curvature for centerline channels
         };
@@ -321,7 +359,7 @@ impl EnhancedArcManager {
             amplitude: adjusted_curvature,
             wavelength: 1.0, // Arc channels don't use wavelength
             phase_direction: 0.0, // Arc channels don't use phase direction
-            position_classification: symmetry_context.position_classification.clone(),
+            position_classification: symmetry_context.position_classification,
             symmetry_enforcement_applied: true,
         })
     }
@@ -359,9 +397,16 @@ pub struct SymmetryValidationResult {
     pub is_symmetric: bool,
 }
 
+impl Default for SymmetryValidationResult {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SymmetryValidationResult {
     /// Create a new validation result
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             bilateral_checks: Vec::new(),
             horizontal_checks: Vec::new(),

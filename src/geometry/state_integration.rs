@@ -135,7 +135,13 @@ impl SerpentineParameterIntegration {
 
 impl Default for SerpentineParameterIntegration {
     fn default() -> Self {
-        Self::new().expect("Failed to create default SerpentineParameterIntegration")
+        Self::new().unwrap_or_else(|_| {
+            // Fallback to minimal configuration if registry creation fails
+            Self {
+                registry: ParameterRegistry::new().unwrap_or_default(),
+                use_adaptive: true,
+            }
+        })
     }
 }
 
@@ -244,7 +250,13 @@ impl ArcParameterIntegration {
 
 impl Default for ArcParameterIntegration {
     fn default() -> Self {
-        Self::new().expect("Failed to create default ArcParameterIntegration")
+        Self::new().unwrap_or_else(|_| {
+            // Fallback to minimal configuration if registry creation fails
+            Self {
+                registry: ParameterRegistry::new().unwrap_or_default(),
+                use_adaptive: true,
+            }
+        })
     }
 }
 
@@ -721,29 +733,32 @@ mod tests {
     
     #[test]
     fn test_serpentine_parameter_integration() {
-        let integration = SerpentineParameterIntegration::new().unwrap();
-        
+        let integration = SerpentineParameterIntegration::new()
+            .expect("Failed to create SerpentineParameterIntegration for test");
+
         // Test parameter validation
         assert!(integration.validate().is_ok());
     }
     
     #[test]
     fn test_legacy_config_conversion() {
-        let mut integration = SerpentineParameterIntegration::new().unwrap();
+        let mut integration = SerpentineParameterIntegration::new()
+            .expect("Failed to create SerpentineParameterIntegration for test");
         let legacy_config = SerpentineConfig::default();
-        
+
         // Apply legacy config
         assert!(integration.apply_legacy_config(&legacy_config).is_ok());
-        
+
         // Validate after conversion
         assert!(integration.validate().is_ok());
     }
     
     #[test]
     fn test_parameter_retrieval() {
-        let integration = SerpentineParameterIntegration::new().unwrap();
+        let integration = SerpentineParameterIntegration::new()
+            .expect("Failed to create SerpentineParameterIntegration for test");
         let geometry_config = GeometryConfig::default();
-        
+
         let params = integration.get_serpentine_parameters(
             (0.0, 0.0),
             (100.0, 0.0),
@@ -751,8 +766,8 @@ mod tests {
             (200.0, 100.0),
             4,
             None,
-        ).unwrap();
-        
+        ).expect("Failed to get serpentine parameters for test");
+
         // Validate retrieved parameters
         assert!(params.validate().is_ok());
         assert!(params.amplitude > 0.0);
@@ -761,7 +776,8 @@ mod tests {
     
     #[test]
     fn test_arc_parameter_integration() {
-        let integration = ArcParameterIntegration::new().unwrap();
+        let integration = ArcParameterIntegration::new()
+            .expect("Failed to create ArcParameterIntegration for test");
 
         // Test parameter validation
         assert!(integration.validate().is_ok());
@@ -769,7 +785,8 @@ mod tests {
 
     #[test]
     fn test_arc_legacy_config_conversion() {
-        let mut integration = ArcParameterIntegration::new().unwrap();
+        let mut integration = ArcParameterIntegration::new()
+            .expect("Failed to create ArcParameterIntegration for test");
         let legacy_config = ArcConfig::default();
 
         // Apply legacy config
@@ -781,7 +798,8 @@ mod tests {
 
     #[test]
     fn test_arc_parameter_retrieval() {
-        let integration = ArcParameterIntegration::new().unwrap();
+        let integration = ArcParameterIntegration::new()
+            .expect("Failed to create ArcParameterIntegration for test");
         let geometry_config = GeometryConfig::default();
 
         let params = integration.get_arc_parameters(
@@ -791,7 +809,7 @@ mod tests {
             (200.0, 100.0),
             4,
             None,
-        ).unwrap();
+        ).expect("Failed to get arc parameters for test");
 
         // Validate retrieved parameters
         assert!(params.validate().is_ok());

@@ -45,6 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &ChannelTypeConfig::Smart {
             serpentine_config: SerpentineConfig::default(),
             arc_config: scheme::config::ArcConfig::default(),
+            frustum_config: scheme::config::FrustumConfig::default(),
         },
     );
     

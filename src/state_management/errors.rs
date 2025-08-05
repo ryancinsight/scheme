@@ -182,6 +182,7 @@ impl From<ValidationError> for ParameterError {
 
 impl ParameterError {
     /// Create a not found error
+    #[must_use]
     pub fn not_found(name: &str, domain: &str) -> Self {
         Self::NotFound {
             name: name.to_string(),
@@ -193,12 +194,13 @@ impl ParameterError {
     pub fn invalid_value(name: &str, value: &dyn fmt::Debug, constraint: &str) -> Self {
         Self::InvalidValue {
             name: name.to_string(),
-            value: format!("{:?}", value),
+            value: format!("{value:?}"),
             constraint: constraint.to_string(),
         }
     }
 
     /// Create a type mismatch error
+    #[must_use]
     pub fn type_mismatch(name: &str, expected: &str, actual: &str) -> Self {
         Self::TypeMismatch {
             name: name.to_string(),
@@ -208,6 +210,7 @@ impl ParameterError {
     }
 
     /// Create a read-only error
+    #[must_use]
     pub fn read_only(name: &str) -> Self {
         Self::ReadOnly {
             name: name.to_string(),
@@ -215,6 +218,7 @@ impl ParameterError {
     }
 
     /// Create a dependency not satisfied error
+    #[must_use]
     pub fn dependency_not_satisfied(name: &str, dependency: &str) -> Self {
         Self::DependencyNotSatisfied {
             name: name.to_string(),
@@ -223,6 +227,7 @@ impl ParameterError {
     }
 
     /// Create a circular dependency error
+    #[must_use]
     pub fn circular_dependency(name: &str) -> Self {
         Self::CircularDependency {
             name: name.to_string(),
@@ -230,6 +235,7 @@ impl ParameterError {
     }
 
     /// Create an adaptation failed error
+    #[must_use]
     pub fn adaptation_failed(name: &str, reason: &str) -> Self {
         Self::AdaptationFailed {
             name: name.to_string(),
@@ -240,6 +246,7 @@ impl ParameterError {
 
 impl ValidationError {
     /// Create a rule failed error
+    #[must_use]
     pub fn rule_failed(field: &str, message: &str) -> Self {
         Self::RuleFailed {
             field: field.to_string(),
@@ -248,11 +255,13 @@ impl ValidationError {
     }
 
     /// Create a multiple failures error
-    pub fn multiple(failures: Vec<ValidationError>) -> Self {
+    #[must_use]
+    pub const fn multiple(failures: Vec<Self>) -> Self {
         Self::Multiple { failures }
     }
 
     /// Create a custom error
+    #[must_use]
     pub fn custom(message: &str) -> Self {
         Self::Custom {
             message: message.to_string(),
@@ -260,6 +269,7 @@ impl ValidationError {
     }
 
     /// Create a constraint violation error
+    #[must_use]
     pub fn constraint_violation(constraint: &str) -> Self {
         Self::ConstraintViolation {
             constraint: constraint.to_string(),
@@ -271,21 +281,22 @@ impl ConstraintError {
     /// Create a range violation error
     pub fn range_violation(value: &dyn fmt::Debug, min: &dyn fmt::Debug, max: &dyn fmt::Debug) -> Self {
         Self::RangeViolation {
-            value: format!("{:?}", value),
-            min: format!("{:?}", min),
-            max: format!("{:?}", max),
+            value: format!("{value:?}"),
+            min: format!("{min:?}"),
+            max: format!("{max:?}"),
         }
     }
 
     /// Create a set violation error
     pub fn set_violation(value: &dyn fmt::Debug, allowed: &[&dyn fmt::Debug]) -> Self {
         Self::SetViolation {
-            value: format!("{:?}", value),
-            allowed: allowed.iter().map(|v| format!("{:?}", v)).collect(),
+            value: format!("{value:?}"),
+            allowed: allowed.iter().map(|v| format!("{v:?}")).collect(),
         }
     }
 
     /// Create a custom violation error
+    #[must_use]
     pub fn custom_violation(message: &str) -> Self {
         Self::CustomViolation {
             message: message.to_string(),

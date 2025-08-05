@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
 use scheme::{
     geometry::{generator::create_geometry, SplitType},
-    config::{GeometryConfig, ChannelTypeConfig, SerpentineConfig, ArcConfig},
+    config::{GeometryConfig, ChannelTypeConfig, SerpentineConfig, ArcConfig, FrustumConfig},
     visualizations::schematic::plot_geometry,
 };
 use std::fs;
@@ -52,6 +52,7 @@ fn create_test_geometries() -> Vec<(String, scheme::geometry::ChannelSystem)> {
         &ChannelTypeConfig::Smart {
             serpentine_config: SerpentineConfig::default(),
             arc_config: ArcConfig::default(),
+            frustum_config: FrustumConfig::default(),
         },
     );
     geometries.push(("very_complex_smart".to_string(), very_complex));

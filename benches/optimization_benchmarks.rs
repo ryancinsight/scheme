@@ -7,7 +7,7 @@ use scheme::{
 /// Benchmark serpentine optimization performance across different profiles
 fn bench_optimization_profiles(c: &mut Criterion) {
     let mut group = c.benchmark_group("optimization_profiles");
-    group.sample_size(10); // Reduce sample size for slower optimization benchmarks
+    group.sample_size(20); // Reduce sample size for slower optimization benchmarks
     
     let config = GeometryConfig::default();
     let box_dims = (200.0, 100.0);
@@ -50,7 +50,7 @@ fn bench_optimization_profiles(c: &mut Criterion) {
 /// Benchmark optimization performance vs complexity
 fn bench_optimization_complexity(c: &mut Criterion) {
     let mut group = c.benchmark_group("optimization_complexity");
-    group.sample_size(10);
+    group.sample_size(20);
     
     let config = GeometryConfig::default();
     let box_dims = (300.0, 150.0);
@@ -92,7 +92,7 @@ fn bench_optimization_complexity(c: &mut Criterion) {
 /// Benchmark optimization parameter sensitivity
 fn bench_optimization_parameters(c: &mut Criterion) {
     let mut group = c.benchmark_group("optimization_parameters");
-    group.sample_size(10);
+    group.sample_size(20);
     
     let config = GeometryConfig::default();
     let box_dims = (200.0, 100.0);
@@ -178,7 +178,7 @@ fn bench_optimization_overhead(c: &mut Criterion) {
 /// Benchmark memory usage during optimization
 fn bench_optimization_memory(c: &mut Criterion) {
     let mut group = c.benchmark_group("optimization_memory");
-    group.sample_size(10);
+    group.sample_size(20);
     
     let config = GeometryConfig::default();
     let box_dims = (400.0, 200.0);
@@ -212,7 +212,7 @@ fn bench_optimization_memory(c: &mut Criterion) {
 /// Benchmark optimization convergence characteristics
 fn bench_optimization_convergence(c: &mut Criterion) {
     let mut group = c.benchmark_group("optimization_convergence");
-    group.sample_size(5); // Very small sample size for thorough optimization
+    group.sample_size(15); // Small sample size for thorough optimization
     
     let config = GeometryConfig::default();
     let box_dims = (300.0, 150.0);

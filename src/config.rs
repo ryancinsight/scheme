@@ -16,6 +16,7 @@
 use crate::geometry::ChannelType;
 use crate::geometry::strategies::SmoothTransitionConfig;
 use crate::error::{ConfigurationError, ConfigurationResult};
+use serde::{Serialize, Deserialize};
 
 // Re-export constants module
 pub use crate::config_constants::*;
@@ -606,6 +607,23 @@ impl Default for WaveShape {
     }
 }
 
+/// Taper profile types for frustum channels
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum TaperProfile {
+    /// Linear taper - constant rate of width change
+    Linear,
+    /// Exponential taper - smooth exponential transition
+    Exponential,
+    /// Smooth taper - uses cosine function for very smooth transitions
+    Smooth,
+}
+
+impl Default for TaperProfile {
+    fn default() -> Self {
+        TaperProfile::Linear
+    }
+}
+
 /// Configuration for serpentine (S-shaped) channels
 #[derive(Debug, Clone, Copy)]
 pub struct SerpentineConfig {
@@ -950,6 +968,195 @@ impl Default for ArcConfig {
     }
 }
 
+/// Configuration for frustum (tapered) channels with venturi throat functionality
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct FrustumConfig {
+    /// Inlet width (starting width) - must be positive (0.1 to 50.0)
+    pub inlet_width: f64,
+    /// Throat width (minimum width at center) - must be less than inlet/outlet widths (0.05 to 25.0)
+    pub throat_width: f64,
+    /// Outlet width (ending width) - must be positive (0.1 to 50.0)
+    pub outlet_width: f64,
+    /// Taper profile type - controls how width changes along the channel
+    pub taper_profile: TaperProfile,
+    /// Number of points to generate along the path - higher = smoother (10 to 1000)
+    pub smoothness: usize,
+    /// Throat position factor - 0.5 = center, 0.0 = at inlet, 1.0 = at outlet (0.1 to 0.9)
+    pub throat_position: f64,
+}
+
+impl FrustumConfig {
+    /// Create a new FrustumConfig with validation
+    ///
+    /// # Arguments
+    /// * `inlet_width` - Starting width of the channel (must be positive)
+    /// * `throat_width` - Minimum width at the throat (must be less than inlet/outlet)
+    /// * `outlet_width` - Ending width of the channel (must be positive)
+    /// * `taper_profile` - Type of taper profile to use
+    /// * `smoothness` - Number of points for path generation
+    /// * `throat_position` - Position of throat along channel (0.5 = center)
+    ///
+    /// # Returns
+    /// * `ConfigurationResult<Self>` - The validated configuration or an error
+    pub fn new(
+        inlet_width: f64,
+        throat_width: f64,
+        outlet_width: f64,
+        taper_profile: TaperProfile,
+        smoothness: usize,
+        throat_position: f64,
+    ) -> ConfigurationResult<Self> {
+        let config = Self {
+            inlet_width,
+            throat_width,
+            outlet_width,
+            taper_profile,
+            smoothness,
+            throat_position,
+        };
+        config.validate()?;
+        Ok(config)
+    }
+
+    /// Validate the frustum configuration
+    pub fn validate(&self) -> ConfigurationResult<()> {
+        // Validate inlet width
+        if self.inlet_width <= 0.0 || self.inlet_width > 50.0 {
+            return Err(ConfigurationError::invalid_frustum_config(
+                "inlet_width",
+                self.inlet_width,
+                "Inlet width must be positive and <= 50.0",
+            ));
+        }
+
+        // Validate outlet width
+        if self.outlet_width <= 0.0 || self.outlet_width > 50.0 {
+            return Err(ConfigurationError::invalid_frustum_config(
+                "outlet_width",
+                self.outlet_width,
+                "Outlet width must be positive and <= 50.0",
+            ));
+        }
+
+        // Validate throat width
+        if self.throat_width <= 0.0 || self.throat_width > 25.0 {
+            return Err(ConfigurationError::invalid_frustum_config(
+                "throat_width",
+                self.throat_width,
+                "Throat width must be positive and <= 25.0",
+            ));
+        }
+
+        // Throat must be narrower than both inlet and outlet
+        if self.throat_width >= self.inlet_width {
+            return Err(ConfigurationError::invalid_frustum_config(
+                "throat_width",
+                self.throat_width,
+                "Throat width must be less than inlet width",
+            ));
+        }
+
+        if self.throat_width >= self.outlet_width {
+            return Err(ConfigurationError::invalid_frustum_config(
+                "throat_width",
+                self.throat_width,
+                "Throat width must be less than outlet width",
+            ));
+        }
+
+        // Validate smoothness
+        if self.smoothness < 10 || self.smoothness > 1000 {
+            return Err(ConfigurationError::invalid_frustum_config(
+                "smoothness",
+                self.smoothness as f64,
+                "Smoothness must be between 10 and 1000",
+            ));
+        }
+
+        // Validate throat position
+        if self.throat_position < 0.1 || self.throat_position > 0.9 {
+            return Err(ConfigurationError::invalid_frustum_config(
+                "throat_position",
+                self.throat_position,
+                "Throat position must be between 0.1 and 0.9",
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Calculate width at a given position along the channel (0.0 to 1.0)
+    pub fn width_at_position(&self, t: f64) -> f64 {
+        let t = t.clamp(0.0, 1.0);
+
+        match self.taper_profile {
+            TaperProfile::Linear => self.linear_taper(t),
+            TaperProfile::Exponential => self.exponential_taper(t),
+            TaperProfile::Smooth => self.smooth_taper(t),
+        }
+    }
+
+    /// Linear taper profile
+    fn linear_taper(&self, t: f64) -> f64 {
+        if t <= self.throat_position {
+            // Inlet to throat
+            let local_t = t / self.throat_position;
+            self.inlet_width + (self.throat_width - self.inlet_width) * local_t
+        } else {
+            // Throat to outlet
+            let local_t = (t - self.throat_position) / (1.0 - self.throat_position);
+            self.throat_width + (self.outlet_width - self.throat_width) * local_t
+        }
+    }
+
+    /// Exponential taper profile
+    fn exponential_taper(&self, t: f64) -> f64 {
+        if t <= self.throat_position {
+            // Inlet to throat - exponential decay
+            let local_t = t / self.throat_position;
+            // Use a normalized exponential that goes from 1 to 0
+            let exp_factor = 2.0;
+            let factor = ((-exp_factor * local_t).exp() - (-exp_factor).exp()) / (1.0 - (-exp_factor).exp());
+            self.inlet_width + (self.throat_width - self.inlet_width) * (1.0 - factor)
+        } else {
+            // Throat to outlet - exponential growth
+            let local_t = (t - self.throat_position) / (1.0 - self.throat_position);
+            // Use a normalized exponential that goes from 0 to 1
+            let exp_factor = 2.0;
+            let factor = (1.0 - (-exp_factor * local_t).exp()) / (1.0 - (-exp_factor).exp());
+            self.throat_width + (self.outlet_width - self.throat_width) * factor
+        }
+    }
+
+    /// Smooth taper profile using cosine function
+    fn smooth_taper(&self, t: f64) -> f64 {
+        if t <= self.throat_position {
+            // Inlet to throat - smooth cosine transition
+            let local_t = t / self.throat_position;
+            let factor = 0.5 * (1.0 + (std::f64::consts::PI * local_t).cos());
+            self.throat_width + (self.inlet_width - self.throat_width) * factor
+        } else {
+            // Throat to outlet - smooth cosine transition
+            let local_t = (t - self.throat_position) / (1.0 - self.throat_position);
+            let factor = 0.5 * (1.0 - (std::f64::consts::PI * local_t).cos());
+            self.throat_width + (self.outlet_width - self.throat_width) * factor
+        }
+    }
+}
+
+impl Default for FrustumConfig {
+    fn default() -> Self {
+        Self {
+            inlet_width: 2.0,
+            throat_width: 0.5,
+            outlet_width: 2.0,
+            taper_profile: TaperProfile::Linear,
+            smoothness: 50,
+            throat_position: 0.5, // Center
+        }
+    }
+}
+
 /// Configuration for selecting channel types in microfluidic schematics
 ///
 /// This enum provides different strategies for determining what type of channel
@@ -958,7 +1165,7 @@ impl Default for ArcConfig {
 /// # Examples
 ///
 /// ```rust
-/// use scheme::config::{ChannelTypeConfig, SerpentineConfig, ArcConfig};
+/// use scheme::config::{ChannelTypeConfig, SerpentineConfig, ArcConfig, FrustumConfig};
 ///
 /// // All channels will be straight lines
 /// let straight_config = ChannelTypeConfig::AllStraight;
@@ -966,10 +1173,14 @@ impl Default for ArcConfig {
 /// // All channels will be serpentine with default parameters
 /// let serpentine_config = ChannelTypeConfig::AllSerpentine(SerpentineConfig::default());
 ///
+/// // All channels will be frustum (tapered) with default parameters
+/// let frustum_config = ChannelTypeConfig::AllFrustum(FrustumConfig::default());
+///
 /// // Smart selection based on channel characteristics
 /// let smart_config = ChannelTypeConfig::Smart {
 ///     serpentine_config: SerpentineConfig::default(),
 ///     arc_config: ArcConfig::default(),
+///     frustum_config: FrustumConfig::default(),
 /// };
 /// ```
 #[derive(Debug, Clone, Copy)]
@@ -982,6 +1193,8 @@ pub enum ChannelTypeConfig {
     AllSerpentine(SerpentineConfig),
     /// All channels will be arcs with the specified configuration
     AllArcs(ArcConfig),
+    /// All channels will be frustum (tapered) with the specified configuration
+    AllFrustum(FrustumConfig),
     /// Channels are selected based on their position in the layout
     MixedByPosition {
         /// Fraction of the box width that defines the middle zone for serpentine channels (0.0 to 1.0)
@@ -997,6 +1210,8 @@ pub enum ChannelTypeConfig {
         serpentine_config: SerpentineConfig,
         /// Configuration for arc channels when selected by smart algorithm
         arc_config: ArcConfig,
+        /// Configuration for frustum channels when selected by smart algorithm
+        frustum_config: FrustumConfig,
     },
     /// Smooth serpentine channels with smooth straight junction connectors
     SmoothSerpentineWithTransitions {
@@ -1014,6 +1229,7 @@ impl Default for ChannelTypeConfig {
         ChannelTypeConfig::Smart {
             serpentine_config: SerpentineConfig::default(),
             arc_config: ArcConfig::default(),
+            frustum_config: FrustumConfig::default(),
         }
     }
 }
@@ -1311,6 +1527,7 @@ pub mod presets {
 pub struct ChannelTypeConfigBuilder {
     serpentine_config: SerpentineConfig,
     arc_config: ArcConfig,
+    frustum_config: FrustumConfig,
     middle_zone_fraction: f64,
 }
 
@@ -1320,6 +1537,7 @@ impl ChannelTypeConfigBuilder {
         Self {
             serpentine_config: SerpentineConfig::default(),
             arc_config: ArcConfig::default(),
+            frustum_config: FrustumConfig::default(),
             middle_zone_fraction: constants::strategy_thresholds::DEFAULT_MIDDLE_ZONE_FRACTION,
         }
     }
@@ -1336,6 +1554,12 @@ impl ChannelTypeConfigBuilder {
         self
     }
 
+    /// Set the frustum configuration
+    pub fn with_frustum_config(mut self, config: FrustumConfig) -> Self {
+        self.frustum_config = config;
+        self
+    }
+
     /// Set the middle zone fraction for mixed by position
     pub fn with_middle_zone_fraction(mut self, fraction: f64) -> Self {
         self.middle_zone_fraction = fraction;
@@ -1347,6 +1571,7 @@ impl ChannelTypeConfigBuilder {
         ChannelTypeConfig::Smart {
             serpentine_config: self.serpentine_config,
             arc_config: self.arc_config,
+            frustum_config: self.frustum_config,
         }
     }
 

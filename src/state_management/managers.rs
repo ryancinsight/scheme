@@ -528,21 +528,25 @@ impl ArcParameterManager {
     }
 
     /// Get curvature factor
+    #[must_use]
     pub fn get_curvature_factor(&self) -> f64 {
         *self.curvature_factor.get_raw_value()
     }
 
     /// Get smoothness points
+    #[must_use]
     pub fn get_smoothness(&self) -> usize {
         *self.smoothness.get_raw_value()
     }
 
     /// Check if collision prevention is enabled
+    #[must_use]
     pub fn is_collision_prevention_enabled(&self) -> bool {
         *self.enable_collision_prevention.get_raw_value()
     }
 
     /// Check if adaptive curvature is enabled
+    #[must_use]
     pub fn is_adaptive_curvature_enabled(&self) -> bool {
         *self.enable_adaptive_curvature.get_raw_value()
     }
@@ -557,13 +561,13 @@ impl Default for ArcParameterManager {
 impl ParameterManager for ArcParameterManager {
     fn get_parameter(&self, name: &str) -> ParameterResult<Box<dyn std::any::Any>> {
         match name {
-            "curvature_factor" => Ok(Box::new(self.curvature_factor.get_raw_value().clone())),
-            "smoothness" => Ok(Box::new(self.smoothness.get_raw_value().clone())),
-            "curvature_direction" => Ok(Box::new(self.curvature_direction.get_raw_value().clone())),
-            "min_separation_distance" => Ok(Box::new(self.min_separation_distance.get_raw_value().clone())),
-            "max_curvature_reduction" => Ok(Box::new(self.max_curvature_reduction.get_raw_value().clone())),
-            "enable_collision_prevention" => Ok(Box::new(self.enable_collision_prevention.get_raw_value().clone())),
-            "enable_adaptive_curvature" => Ok(Box::new(self.enable_adaptive_curvature.get_raw_value().clone())),
+            "curvature_factor" => Ok(Box::new(*self.curvature_factor.get_raw_value())),
+            "smoothness" => Ok(Box::new(*self.smoothness.get_raw_value())),
+            "curvature_direction" => Ok(Box::new(*self.curvature_direction.get_raw_value())),
+            "min_separation_distance" => Ok(Box::new(*self.min_separation_distance.get_raw_value())),
+            "max_curvature_reduction" => Ok(Box::new(*self.max_curvature_reduction.get_raw_value())),
+            "enable_collision_prevention" => Ok(Box::new(*self.enable_collision_prevention.get_raw_value())),
+            "enable_adaptive_curvature" => Ok(Box::new(*self.enable_adaptive_curvature.get_raw_value())),
             _ => Err(ParameterError::not_found(name, "arc")),
         }
     }
@@ -635,7 +639,7 @@ impl ParameterManager for ArcParameterManager {
         }
     }
 
-    fn domain_name(&self) -> &str {
+    fn domain_name(&self) -> &'static str {
         "arc"
     }
 
@@ -673,6 +677,7 @@ pub struct GeometryParameterManager {
 
 impl GeometryParameterManager {
     /// Create a new geometry parameter manager
+    #[must_use]
     pub fn new() -> Self {
         let wall_clearance = ConfigurableParameter::new(
             0.5,
@@ -733,9 +738,9 @@ impl Default for GeometryParameterManager {
 impl ParameterManager for GeometryParameterManager {
     fn get_parameter(&self, name: &str) -> ParameterResult<Box<dyn std::any::Any>> {
         match name {
-            "wall_clearance" => Ok(Box::new(self.wall_clearance.get_raw_value().clone())),
-            "channel_width" => Ok(Box::new(self.channel_width.get_raw_value().clone())),
-            "channel_height" => Ok(Box::new(self.channel_height.get_raw_value().clone())),
+            "wall_clearance" => Ok(Box::new(*self.wall_clearance.get_raw_value())),
+            "channel_width" => Ok(Box::new(*self.channel_width.get_raw_value())),
+            "channel_height" => Ok(Box::new(*self.channel_height.get_raw_value())),
             _ => Err(ParameterError::not_found(name, "geometry")),
         }
     }
@@ -795,7 +800,7 @@ impl ParameterManager for GeometryParameterManager {
         }
     }
 
-    fn domain_name(&self) -> &str {
+    fn domain_name(&self) -> &'static str {
         "geometry"
     }
 
@@ -818,6 +823,7 @@ pub struct CollisionParameterManager {
 }
 
 impl CollisionParameterManager {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             validation_rules: ValidationRuleSet::new(),
@@ -856,7 +862,7 @@ impl ParameterManager for CollisionParameterManager {
         Err(ParameterError::not_found(name, "collision"))
     }
 
-    fn domain_name(&self) -> &str {
+    fn domain_name(&self) -> &'static str {
         "collision"
     }
 
@@ -875,6 +881,7 @@ pub struct SymmetryParameterManager {
 }
 
 impl SymmetryParameterManager {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             validation_rules: ValidationRuleSet::new(),
@@ -913,7 +920,7 @@ impl ParameterManager for SymmetryParameterManager {
         Err(ParameterError::not_found(name, "symmetry"))
     }
 
-    fn domain_name(&self) -> &str {
+    fn domain_name(&self) -> &'static str {
         "symmetry"
     }
 

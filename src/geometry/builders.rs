@@ -17,7 +17,8 @@ pub struct NodeBuilder {
 
 impl NodeBuilder {
     /// Create a new node builder
-    pub fn new(id: usize, point: Point2D) -> Self {
+    #[must_use]
+    pub const fn new(id: usize, point: Point2D) -> Self {
         Self {
             id,
             point,
@@ -26,6 +27,11 @@ impl NodeBuilder {
     }
     
     /// Add metadata to the node
+    ///
+    /// # Panics
+    ///
+    /// Panics if the metadata container is in an invalid state (should not happen in normal usage).
+    #[must_use]
     pub fn with_metadata<T: Metadata + Clone + 'static>(mut self, metadata: T) -> Self {
         if self.metadata.is_none() {
             self.metadata = Some(MetadataContainer::new());
@@ -35,12 +41,14 @@ impl NodeBuilder {
     }
     
     /// Add multiple metadata entries
+    #[must_use]
     pub fn with_metadata_container(mut self, container: MetadataContainer) -> Self {
         self.metadata = Some(container);
         self
     }
     
     /// Build the node
+    #[must_use]
     pub fn build(self) -> Node {
         Node {
             id: self.id,
@@ -64,7 +72,8 @@ pub struct ChannelBuilder {
 
 impl ChannelBuilder {
     /// Create a new channel builder
-    pub fn new(
+    #[must_use]
+    pub const fn new(
         id: usize,
         from_node: usize,
         to_node: usize,
@@ -84,6 +93,12 @@ impl ChannelBuilder {
     }
     
     /// Add metadata to the channel
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the metadata container is in an invalid state.
+    /// This should never happen under normal usage.
+    #[must_use]
     pub fn with_metadata<T: Metadata + Clone + 'static>(mut self, metadata: T) -> Self {
         if self.metadata.is_none() {
             self.metadata = Some(MetadataContainer::new());
@@ -93,12 +108,14 @@ impl ChannelBuilder {
     }
     
     /// Add multiple metadata entries
+    #[must_use]
     pub fn with_metadata_container(mut self, container: MetadataContainer) -> Self {
         self.metadata = Some(container);
         self
     }
     
     /// Build the channel
+    #[must_use]
     pub fn build(self) -> Channel {
         Channel {
             id: self.id,
@@ -152,15 +169,15 @@ impl NodeExt for Node {
     }
     
     fn has_metadata<T: Metadata + 'static>(&self) -> bool {
-        self.metadata.as_ref().map_or(false, |m| m.contains::<T>())
+        self.metadata.as_ref().is_some_and(super::metadata::MetadataContainer::contains::<T>)
     }
-    
+
     fn remove_metadata<T: Metadata + 'static>(&mut self) -> bool {
-        self.metadata.as_mut().map_or(false, |m| m.remove::<T>().is_some())
+        self.metadata.as_mut().is_some_and(|m| m.remove::<T>().is_some())
     }
-    
+
     fn metadata_types(&self) -> Vec<&'static str> {
-        self.metadata.as_ref().map_or(Vec::new(), |m| m.metadata_types())
+        self.metadata.as_ref().map_or(Vec::new(), super::metadata::MetadataContainer::metadata_types)
     }
 }
 
@@ -204,15 +221,15 @@ impl ChannelExt for Channel {
     }
     
     fn has_metadata<T: Metadata + 'static>(&self) -> bool {
-        self.metadata.as_ref().map_or(false, |m| m.contains::<T>())
+        self.metadata.as_ref().is_some_and(super::metadata::MetadataContainer::contains::<T>)
     }
-    
+
     fn remove_metadata<T: Metadata + 'static>(&mut self) -> bool {
-        self.metadata.as_mut().map_or(false, |m| m.remove::<T>().is_some())
+        self.metadata.as_mut().is_some_and(|m| m.remove::<T>().is_some())
     }
-    
+
     fn metadata_types(&self) -> Vec<&'static str> {
-        self.metadata.as_ref().map_or(Vec::new(), |m| m.metadata_types())
+        self.metadata.as_ref().map_or(Vec::new(), super::metadata::MetadataContainer::metadata_types)
     }
 }
 

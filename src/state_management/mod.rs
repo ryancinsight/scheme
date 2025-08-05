@@ -62,11 +62,23 @@ pub struct DefaultParameterConfig;
 
 impl DefaultParameterConfig {
     /// Create default parameter registry
+    /// Create a parameter registry with default configuration
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the registry cannot be initialized with default parameters
+    /// or if parameter validation fails during setup.
     pub fn create_registry() -> StateResult<ParameterRegistry> {
         ParameterRegistry::with_defaults()
     }
     
     /// Create registry with validation enabled
+    /// Create a parameter registry with validation enabled
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the registry cannot be initialized, if validation rules
+    /// cannot be applied, or if the initial parameter validation fails.
     pub fn create_validated_registry() -> StateResult<ParameterRegistry> {
         let mut registry = Self::create_registry()?;
         registry.enable_validation(true);

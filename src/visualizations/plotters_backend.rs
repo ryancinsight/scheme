@@ -150,26 +150,31 @@ impl PlottersRenderer {
                 .map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;
         }
 
-        // Draw boundary box
+        // Draw channels with type-specific colors
+        let (boundary_lines, channel_lines) = system.get_lines_by_type();
+
+        // Draw boundary lines first
         chart.draw_series(
-            system.box_outline.iter().map(|&(p1, p2)| {
+            boundary_lines.iter().map(|(p1, p2)| {
                 PathElement::new(
-                    vec![p1, p2],
+                    vec![*p1, *p2],
                     convert_color(&config.boundary_style.color).stroke_width(config.boundary_style.width as u32)
                 )
             })
         ).map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;
 
-        // Draw channels
-        let lines = system.get_lines();
-        chart.draw_series(
-            lines.iter().map(|(p1, p2)| {
-                PathElement::new(
-                    vec![*p1, *p2],
-                    convert_color(&config.channel_style.color).stroke_width(config.channel_style.width as u32)
-                )
-            })
-        ).map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;
+        // Draw channels by type with different colors
+        for (channel_type, lines) in channel_lines {
+            let style = config.channel_type_styles.get_style(channel_type);
+            chart.draw_series(
+                lines.iter().map(|(p1, p2)| {
+                    PathElement::new(
+                        vec![*p1, *p2],
+                        convert_color(&style.color).stroke_width(style.width as u32)
+                    )
+                })
+            ).map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;
+        }
 
         root.present()
             .map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;

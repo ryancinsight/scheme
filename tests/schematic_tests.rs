@@ -4,7 +4,7 @@
 
 use scheme::{
     geometry::{generator::create_geometry, SplitType, ChannelType},
-    config::{GeometryConfig, ChannelTypeConfig, SerpentineConfig, ArcConfig},
+    config::{GeometryConfig, ChannelTypeConfig, SerpentineConfig, ArcConfig, FrustumConfig},
     visualizations::schematic::plot_geometry,
 };
 use std::fs;
@@ -176,6 +176,7 @@ fn test_mixed_channel_types() {
             ChannelType::SmoothStraight { .. } => has_straight = true,
             ChannelType::Serpentine { .. } => {},
             ChannelType::Arc { .. } => {},
+            ChannelType::Frustum { .. } => {},
         }
     }
     
@@ -454,6 +455,7 @@ fn test_smart_channel_types() {
         &ChannelTypeConfig::Smart {
             serpentine_config: SerpentineConfig::default(),
             arc_config: ArcConfig::default(),
+            frustum_config: FrustumConfig::default(),
         },
     );
 
@@ -466,6 +468,7 @@ fn test_smart_channel_types() {
             ChannelType::SmoothStraight { .. } => { channel_types.insert("smooth_straight"); },
             ChannelType::Serpentine { .. } => { channel_types.insert("serpentine"); },
             ChannelType::Arc { .. } => { channel_types.insert("arc"); },
+            ChannelType::Frustum { .. } => { channel_types.insert("frustum"); },
         }
     }
     

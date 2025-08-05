@@ -32,7 +32,8 @@ pub struct CollisionContext {
 
 impl CollisionContext {
     /// Create a new collision context from channel generation context
-    pub fn from_channel_context(
+    #[must_use]
+    pub const fn from_channel_context(
         channel_context: ChannelGenerationContext,
         neighbor_info: Vec<NeighborInfo>,
         wall_boundaries: WallBoundaries,
@@ -47,7 +48,8 @@ impl CollisionContext {
     }
 
     /// Get the underlying channel generation context
-    pub fn channel_context(&self) -> &ChannelGenerationContext {
+    #[must_use]
+    pub const fn channel_context(&self) -> &ChannelGenerationContext {
         &self.channel_context
     }
 }
@@ -103,9 +105,11 @@ pub struct ChannelInfo {
 /// Collision detection and avoidance system
 pub struct CollisionDetectionSystem {
     /// Parameter registry for collision parameters
+    #[allow(dead_code)] // Part of comprehensive collision detection framework
     registry: ParameterRegistry,
-    
+
     /// Cached collision parameters
+    #[allow(dead_code)] // Part of comprehensive collision detection framework
     cached_params: Option<CollisionParameters>,
 }
 
@@ -139,19 +143,20 @@ pub struct CollisionParameters {
 
 impl CollisionParameters {
     /// Create parameters from constants registry with optional adaptive context
+    #[must_use]
     pub fn from_constants_registry(
         constants: &ConstantsRegistry,
         context: Option<&ChannelGenerationContext>,
     ) -> Self {
         // Base parameters from constants registry
         let mut params = Self {
-            min_channel_distance: 2.0, // This would come from constants in full implementation
-            min_wall_distance: 1.0,
-            safety_margin_factor: 1.2,
+            min_channel_distance: constants.get_min_channel_distance(),
+            min_wall_distance: constants.get_min_wall_distance(),
+            safety_margin_factor: constants.get_safety_margin_factor(),
             enable_neighbor_detection: true,
             enable_wall_detection: true,
-            max_reduction_factor: 0.8,
-            detection_sensitivity: 1.0,
+            max_reduction_factor: constants.get_max_reduction_factor(),
+            detection_sensitivity: constants.get_detection_sensitivity(),
             adaptive_enabled: context.is_some(),
         };
 
@@ -168,27 +173,34 @@ impl CollisionParameters {
         // Adjust minimum distances based on neighbor proximity
         if let Some(min_neighbor_dist) = context.min_neighbor_distance() {
             // Reduce minimum distances when neighbors are close
-            let proximity_factor = (min_neighbor_dist / 10.0).min(1.0).max(0.5);
+            let proximity_factor = (min_neighbor_dist / constants.get_proximity_divisor()).clamp(
+                constants.get_min_proximity_factor(),
+                constants.get_max_proximity_factor()
+            );
             self.min_channel_distance *= proximity_factor;
             self.min_wall_distance *= proximity_factor;
         }
 
         // Adjust sensitivity based on branch count
         let branch_factor = constants.get_branch_factor_exponent();
-        let branch_adjustment = (context.total_branches as f64).powf(branch_factor) / 4.0;
-        self.detection_sensitivity *= (1.0 + branch_adjustment).min(2.0);
+        let branch_adjustment = (context.total_branches as f64).powf(branch_factor) / constants.get_branch_adjustment_divisor();
+        self.detection_sensitivity *= (1.0 + branch_adjustment).min(constants.get_max_sensitivity_multiplier());
 
         // Adjust reduction factor based on channel length
         let channel_length = context.channel_length();
-        if channel_length > 50.0 {
+        if channel_length > constants.get_long_channel_threshold() {
             // Longer channels can tolerate more reduction
-            self.max_reduction_factor = (self.max_reduction_factor * 1.2).min(0.95);
+            self.max_reduction_factor = (self.max_reduction_factor * constants.get_long_channel_reduction_multiplier()).min(constants.get_max_reduction_limit());
         }
     }
 }
 
 impl CollisionDetectionSystem {
     /// Create a new collision detection system
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the parameter registry cannot be initialized with default values.
     pub fn new() -> SchemeResult<Self> {
         let registry = ParameterRegistry::with_defaults()
             .map_err(|e| SchemeError::Configuration(
@@ -202,7 +214,8 @@ impl CollisionDetectionSystem {
     }
     
     /// Create with existing parameter registry
-    pub fn with_registry(registry: ParameterRegistry) -> Self {
+    #[must_use]
+    pub const fn with_registry(registry: ParameterRegistry) -> Self {
         Self {
             registry,
             cached_params: None,
@@ -210,21 +223,26 @@ impl CollisionDetectionSystem {
     }
     
     /// Get collision parameters with adaptive behavior
-    fn get_collision_parameters(&mut self, context: Option<&ChannelGenerationContext>) -> SchemeResult<CollisionParameters> {
+    fn get_collision_parameters(context: Option<&ChannelGenerationContext>) -> CollisionParameters {
         let constants = ConstantsRegistry::new();
 
         // Always create fresh parameters to ensure adaptive behavior is applied
-        Ok(CollisionParameters::from_constants_registry(&constants, context))
+        CollisionParameters::from_constants_registry(&constants, context)
     }
     
     /// Detect collisions for a given path with adaptive parameter behavior
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if collision detection fails due to invalid parameters or
+    /// computational issues during the detection process.
     pub fn detect_collisions(
         &mut self,
         path: &[Point2D],
         context: &CollisionContext,
     ) -> SchemeResult<CollisionDetectionResult> {
         // Get adaptive parameters based on channel context
-        let params = self.get_collision_parameters(Some(&context.channel_context))?;
+        let params = Self::get_collision_parameters(Some(&context.channel_context));
 
         let mut result = CollisionDetectionResult {
             has_collisions: false,
@@ -235,16 +253,16 @@ impl CollisionDetectionSystem {
 
         // Check neighbor collisions with adaptive parameters
         if params.enable_neighbor_detection {
-            self.detect_neighbor_collisions(path, context, &params, &mut result)?;
+            Self::detect_neighbor_collisions(path, context, &params, &mut result);
         }
 
         // Check wall collisions with adaptive parameters
         if params.enable_wall_detection {
-            self.detect_wall_collisions(path, context, &params, &mut result)?;
+            Self::detect_wall_collisions(path, context, &params, &mut result);
         }
 
         // Calculate overall severity with adaptive sensitivity
-        result.severity_score = self.calculate_severity_score(&result, &params);
+        result.severity_score = Self::calculate_severity_score(&result, &params);
         result.has_collisions = result.severity_score > 0.0;
 
         Ok(result)
@@ -252,12 +270,11 @@ impl CollisionDetectionSystem {
     
     /// Detect collisions with neighboring channels
     fn detect_neighbor_collisions(
-        &self,
         path: &[Point2D],
         context: &CollisionContext,
         params: &CollisionParameters,
         result: &mut CollisionDetectionResult,
-    ) -> SchemeResult<()> {
+    ) {
         let min_distance = params.min_channel_distance * params.safety_margin_factor;
         
         for neighbor in &context.neighbor_info {
@@ -268,7 +285,7 @@ impl CollisionDetectionSystem {
             // Check each point in the path against this neighbor
             for (i, &point) in path.iter().enumerate() {
                 let distance_to_neighbor = (point.1 - neighbor.y_position).abs();
-                let required_distance = min_distance + (context.current_channel.width + neighbor.width) / 2.0;
+                let required_distance = min_distance + f64::midpoint(context.current_channel.width, neighbor.width);
                 
                 if distance_to_neighbor < required_distance {
                     result.neighbor_collisions.push(NeighborCollision {
@@ -282,17 +299,16 @@ impl CollisionDetectionSystem {
             }
         }
         
-        Ok(())
+        // Function completed successfully
     }
     
     /// Detect collisions with walls
     fn detect_wall_collisions(
-        &self,
         path: &[Point2D],
         context: &CollisionContext,
         params: &CollisionParameters,
         result: &mut CollisionDetectionResult,
-    ) -> SchemeResult<()> {
+    ) {
         let min_distance = params.min_wall_distance * params.safety_margin_factor;
         let half_width = context.current_channel.width / 2.0;
         
@@ -320,12 +336,11 @@ impl CollisionDetectionSystem {
             }
         }
         
-        Ok(())
+        // Function completed successfully
     }
     
     /// Calculate overall collision severity score
     fn calculate_severity_score(
-        &self,
         result: &CollisionDetectionResult,
         _params: &CollisionParameters,
     ) -> f64 {
@@ -341,6 +356,12 @@ impl CollisionDetectionSystem {
     }
     
     /// Apply adaptive collision avoidance to a path
+    /// Apply collision avoidance to a path
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if collision detection fails or if path modification
+    /// encounters computational issues during the avoidance process.
     pub fn apply_collision_avoidance(
         &mut self,
         path: &mut Vec<Point2D>,
@@ -358,12 +379,12 @@ impl CollisionDetectionSystem {
         }
 
         // Get adaptive parameters for avoidance strategy
-        let params = self.get_collision_parameters(Some(&context.channel_context))?;
+        let params = Self::get_collision_parameters(Some(&context.channel_context));
         let original_severity = detection_result.severity_score;
 
         // Apply adaptive avoidance strategies
-        let reduction_factor = self.calculate_adaptive_reduction_factor(&detection_result, &params, &context.channel_context);
-        self.apply_adaptive_path_reduction(path, context, reduction_factor)?;
+        let reduction_factor = Self::calculate_adaptive_reduction_factor(&detection_result, &params, &context.channel_context);
+        Self::apply_adaptive_path_reduction(path, context, reduction_factor);
 
         // Verify improvement with adaptive parameters
         let final_detection = self.detect_collisions(path, context)?;
@@ -379,17 +400,16 @@ impl CollisionDetectionSystem {
     
     /// Calculate adaptive reduction factor based on collision severity and context
     fn calculate_adaptive_reduction_factor(
-        &self,
         detection_result: &CollisionDetectionResult,
         params: &CollisionParameters,
         context: &ChannelGenerationContext,
     ) -> f64 {
         let neighbor_max = detection_result.neighbor_collisions.iter()
-            .map(|c| c.get_severity())
+            .map(CollisionSeverity::get_severity)
             .fold(0.0, f64::max);
 
         let wall_max = detection_result.wall_collisions.iter()
-            .map(|c| c.get_severity())
+            .map(CollisionSeverity::get_severity)
             .fold(0.0, f64::max);
 
         let max_severity = neighbor_max.max(wall_max);
@@ -420,7 +440,7 @@ impl CollisionDetectionSystem {
             let constants = ConstantsRegistry::new();
             let branch_factor = (context.total_branches as f64).powf(constants.get_branch_factor_exponent());
             if branch_factor > 2.0 {
-                reduction_factor *= 1.0 + (branch_factor - 2.0) * 0.1;
+                reduction_factor *= (branch_factor - 2.0).mul_add(0.1, 1.0);
             }
         }
 
@@ -428,17 +448,17 @@ impl CollisionDetectionSystem {
     }
 
     /// Legacy method for backward compatibility
+    #[allow(dead_code)] // Part of comprehensive collision detection framework
     fn calculate_reduction_factor(
-        &self,
         detection_result: &CollisionDetectionResult,
         params: &CollisionParameters,
     ) -> f64 {
         let neighbor_max = detection_result.neighbor_collisions.iter()
-            .map(|c| c.get_severity())
+            .map(CollisionSeverity::get_severity)
             .fold(0.0, f64::max);
 
         let wall_max = detection_result.wall_collisions.iter()
-            .map(|c| c.get_severity())
+            .map(CollisionSeverity::get_severity)
             .fold(0.0, f64::max);
 
         let max_severity = neighbor_max.max(wall_max);
@@ -450,13 +470,12 @@ impl CollisionDetectionSystem {
     
     /// Apply adaptive path reduction to avoid collisions
     fn apply_adaptive_path_reduction(
-        &self,
         path: &mut Vec<Point2D>,
         context: &CollisionContext,
         reduction_factor: f64,
-    ) -> SchemeResult<()> {
+    ) {
         if reduction_factor <= 0.0 {
-            return Ok(());
+            return;
         }
 
         let start = context.current_channel.start;
@@ -466,24 +485,23 @@ impl CollisionDetectionSystem {
         // Apply different reduction strategies based on context
         if channel_context.total_branches > 8 {
             // High branch count - use more sophisticated reduction
-            self.apply_sophisticated_reduction(path, start, end, reduction_factor, channel_context)?;
+            Self::apply_sophisticated_reduction(path, start, end, reduction_factor, channel_context);
         } else {
             // Standard reduction for simpler cases
-            self.apply_standard_reduction(path, start, end, reduction_factor)?;
+            Self::apply_standard_reduction(path, start, end, reduction_factor);
         }
 
-        Ok(())
+        // Function completed successfully
     }
 
     /// Apply sophisticated reduction for complex channel systems
     fn apply_sophisticated_reduction(
-        &self,
-        path: &mut Vec<Point2D>,
+        path: &mut [Point2D],
         start: Point2D,
         end: Point2D,
         reduction_factor: f64,
         context: &ChannelGenerationContext,
-    ) -> SchemeResult<()> {
+    ) {
         let path_len = path.len();
 
         // Use adaptive reduction that varies along the path
@@ -491,12 +509,12 @@ impl CollisionDetectionSystem {
             let t = i as f64 / (path_len - 1) as f64;
 
             // Calculate adaptive reduction factor based on position
-            let position_factor = if t < 0.2 || t > 0.8 {
-                // Reduce more aggressively at endpoints
-                reduction_factor * 1.2
-            } else {
+            let position_factor = if (0.2..=0.8).contains(&t) {
                 // Standard reduction in the middle
                 reduction_factor
+            } else {
+                // Reduce more aggressively at endpoints
+                reduction_factor * 1.2
             };
 
             // Consider neighbor proximity for local adjustments
@@ -515,48 +533,47 @@ impl CollisionDetectionSystem {
                 position_factor
             };
 
-            let straight_x = start.0 + t * (end.0 - start.0);
-            let straight_y = start.1 + t * (end.1 - start.1);
+            let straight_x = t.mul_add(end.0 - start.0, start.0);
+            let straight_y = t.mul_add(end.1 - start.1, start.1);
 
             // Apply adaptive interpolation
             let final_reduction = local_reduction.min(0.95); // Cap at 95% reduction
-            point.0 = point.0 * (1.0 - final_reduction) + straight_x * final_reduction;
-            point.1 = point.1 * (1.0 - final_reduction) + straight_y * final_reduction;
+            point.0 = point.0.mul_add(1.0 - final_reduction, straight_x * final_reduction);
+            point.1 = point.1.mul_add(1.0 - final_reduction, straight_y * final_reduction);
         }
 
-        Ok(())
+        // Function completed successfully
     }
 
     /// Apply standard path reduction (legacy method)
     fn apply_standard_reduction(
-        &self,
-        path: &mut Vec<Point2D>,
+        path: &mut [Point2D],
         start: Point2D,
         end: Point2D,
         reduction_factor: f64,
-    ) -> SchemeResult<()> {
+    ) {
         let path_len = path.len();
         for (i, point) in path.iter_mut().enumerate() {
             let t = i as f64 / (path_len - 1) as f64;
-            let straight_x = start.0 + t * (end.0 - start.0);
-            let straight_y = start.1 + t * (end.1 - start.1);
+            let straight_x = t.mul_add(end.0 - start.0, start.0);
+            let straight_y = t.mul_add(end.1 - start.1, start.1);
 
             // Interpolate between current path and straight line
-            point.0 = point.0 * (1.0 - reduction_factor) + straight_x * reduction_factor;
-            point.1 = point.1 * (1.0 - reduction_factor) + straight_y * reduction_factor;
+            point.0 = point.0.mul_add(1.0 - reduction_factor, straight_x * reduction_factor);
+            point.1 = point.1.mul_add(1.0 - reduction_factor, straight_y * reduction_factor);
         }
 
-        Ok(())
+        // Function completed successfully
     }
 
     /// Legacy method for backward compatibility
+    #[allow(dead_code)] // Part of comprehensive collision detection framework
     fn apply_path_reduction(
-        &self,
-        path: &mut Vec<Point2D>,
+        path: &mut [Point2D],
         context: &CollisionContext,
         reduction_factor: f64,
-    ) -> SchemeResult<()> {
-        self.apply_standard_reduction(path, context.current_channel.start, context.current_channel.end, reduction_factor)
+    ) {
+        Self::apply_standard_reduction(path, context.current_channel.start, context.current_channel.end, reduction_factor);
     }
 }
 

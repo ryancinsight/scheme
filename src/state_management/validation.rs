@@ -7,6 +7,9 @@ use crate::state_management::errors::{ValidationError, ParameterResult};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
+/// Type alias for complex validation function signatures
+pub type ValidationFunction = fn(&HashMap<String, Box<dyn std::any::Any>>) -> Result<(), String>;
+
 /// Validation rule for parameter relationships
 pub trait ValidationRule: Debug + Send + Sync {
     /// Validate parameters and return any errors
@@ -37,6 +40,7 @@ pub struct ValidationRuleSet {
 
 impl ValidationRuleSet {
     /// Create a new validation rule set
+    #[must_use]
     pub fn new() -> Self {
         Self {
             rules: Vec::new(),
@@ -46,6 +50,7 @@ impl ValidationRuleSet {
     }
     
     /// Add a validation rule
+    #[must_use]
     pub fn add_rule<R: ValidationRule + 'static>(mut self, rule: R) -> Self {
         self.rules.push(Box::new(rule));
         self.cache.clear(); // Clear cache when rules change
@@ -61,11 +66,22 @@ impl ValidationRuleSet {
     }
     
     /// Check if validation is enabled
-    pub fn is_enabled(&self) -> bool {
+    #[must_use]
+    pub const fn is_enabled(&self) -> bool {
         self.enabled
     }
     
     /// Validate all rules against parameters
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any validation rule fails. The error contains details
+    /// about the first validation failure encountered.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the error collection is empty when errors are expected.
+    /// This should never happen under normal usage.
     pub fn validate_all(&self, parameters: &HashMap<String, Box<dyn std::any::Any>>) -> ParameterResult<()> {
         if !self.enabled {
             return Ok(());
@@ -93,11 +109,13 @@ impl ValidationRuleSet {
     }
     
     /// Get all rule names
+    #[must_use]
     pub fn rule_names(&self) -> Vec<&str> {
         self.rules.iter().map(|r| r.name()).collect()
     }
     
     /// Get all dependencies across all rules
+    #[must_use]
     pub fn all_dependencies(&self) -> HashSet<String> {
         self.rules.iter()
             .flat_map(|r| r.dependencies())
@@ -127,6 +145,7 @@ pub struct RangeValidationRule {
 
 impl RangeValidationRule {
     /// Create a new range validation rule
+    #[must_use]
     pub fn new(name: &str, parameter_name: &str, min_value: f64, max_value: f64) -> Self {
         Self {
             name: name.to_string(),
@@ -196,35 +215,38 @@ impl RelationshipValidationRule {
     }
     
     /// Create a rule where dependent must be less than primary
+    #[must_use]
     pub fn less_than(name: &str, primary: &str, dependent: &str) -> Self {
         Self::new(
             name,
             primary,
             dependent,
             |p, d| d < p,
-            &format!("{} must be less than {}", dependent, primary),
+            &format!("{dependent} must be less than {primary}"),
         )
     }
     
     /// Create a rule where dependent must be greater than primary
+    #[must_use]
     pub fn greater_than(name: &str, primary: &str, dependent: &str) -> Self {
         Self::new(
             name,
             primary,
             dependent,
             |p, d| d > p,
-            &format!("{} must be greater than {}", dependent, primary),
+            &format!("{dependent} must be greater than {primary}"),
         )
     }
     
     /// Create a rule where dependent must be a multiple of primary
+    #[must_use]
     pub fn multiple_of(name: &str, primary: &str, dependent: &str) -> Self {
         Self::new(
             name,
             primary,
             dependent,
             |p, d| p > 0.0 && (d % p).abs() < 1e-10,
-            &format!("{} must be a multiple of {}", dependent, primary),
+            &format!("{dependent} must be a multiple of {primary}"),
         )
     }
 }
@@ -267,7 +289,7 @@ impl ValidationRule for RelationshipValidationRule {
 pub struct CustomValidationRule {
     name: String,
     dependencies: Vec<String>,
-    validator: fn(&HashMap<String, Box<dyn std::any::Any>>) -> Result<(), String>,
+    validator: ValidationFunction,
     description: String,
 }
 
@@ -276,7 +298,7 @@ impl CustomValidationRule {
     pub fn new(
         name: &str,
         dependencies: Vec<String>,
-        validator: fn(&HashMap<String, Box<dyn std::any::Any>>) -> Result<(), String>,
+        validator: ValidationFunction,
         description: &str,
     ) -> Self {
         Self {
@@ -313,6 +335,7 @@ pub struct CommonValidationRules;
 
 impl CommonValidationRules {
     /// Create validation rules for serpentine parameters
+    #[must_use]
     pub fn serpentine_rules() -> ValidationRuleSet {
         ValidationRuleSet::new()
             .add_rule(RangeValidationRule::new(
@@ -335,6 +358,7 @@ impl CommonValidationRules {
     }
     
     /// Create validation rules for arc parameters
+    #[must_use]
     pub fn arc_rules() -> ValidationRuleSet {
         ValidationRuleSet::new()
             .add_rule(RangeValidationRule::new(
@@ -352,6 +376,7 @@ impl CommonValidationRules {
     }
     
     /// Create validation rules for geometry parameters
+    #[must_use]
     pub fn geometry_rules() -> ValidationRuleSet {
         ValidationRuleSet::new()
             .add_rule(RangeValidationRule::new(

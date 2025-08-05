@@ -6,7 +6,7 @@
 
 use crate::geometry::{ChannelType, Point2D};
 use crate::geometry::optimization::optimize_serpentine_parameters;
-use crate::config::{ArcConfig, ChannelTypeConfig, GeometryConfig, SerpentineConfig, constants};
+use crate::config::{ArcConfig, ChannelTypeConfig, GeometryConfig, SerpentineConfig, FrustumConfig, constants};
 use crate::config_constants::ConstantsRegistry;
 use crate::state_management::bilateral_symmetry::{
     SymmetryContext, BilateralSymmetryConfig, BilateralPhaseDirectionCalculator
@@ -1154,6 +1154,10 @@ impl ChannelTypeFactory {
                 Box::new(ArcChannelStrategy::new(*arc_config))
             }
 
+            ChannelTypeConfig::AllFrustum(frustum_config) => {
+                Box::new(FrustumChannelStrategy::new(*frustum_config))
+            }
+
             ChannelTypeConfig::MixedByPosition {
                 middle_zone_fraction,
                 serpentine_config,
@@ -1173,8 +1177,8 @@ impl ChannelTypeFactory {
                 }
             }
 
-            ChannelTypeConfig::Smart { serpentine_config, arc_config } => {
-                Self::create_smart_strategy(from, to, box_dims, *serpentine_config, *arc_config)
+            ChannelTypeConfig::Smart { serpentine_config, arc_config, frustum_config } => {
+                Self::create_smart_strategy(from, to, box_dims, *serpentine_config, *arc_config, *frustum_config)
             }
 
             ChannelTypeConfig::SmoothSerpentineWithTransitions { serpentine_config, smooth_straight_config } => {
@@ -1196,24 +1200,30 @@ impl ChannelTypeFactory {
         box_dims: (f64, f64),
         serpentine_config: SerpentineConfig,
         arc_config: ArcConfig,
+        frustum_config: FrustumConfig,
     ) -> Box<dyn ChannelTypeStrategy> {
         let constants = ConstantsRegistry::new();
         let dx = to.0 - from.0;
         let dy = to.1 - from.1;
         let length = (dx * dx + dy * dy).sqrt();
 
-        // Smart logic: use serpentine for longer horizontal channels,
-        // arcs for angled channels, straight for short channels
+        // Smart logic: use frustum for medium-length channels that could benefit from flow control,
+        // serpentine for longer horizontal channels, arcs for angled channels, straight for short channels
         if length > box_dims.0 * constants.get_long_horizontal_threshold()
             && dy.abs() < dx.abs() * constants.get_horizontal_angle_threshold() {
-            // Long horizontal channel - use serpentine
+            // Long horizontal channel - use serpentine for mixing
             Box::new(SerpentineChannelStrategy::new(serpentine_config))
+        } else if length > box_dims.0 * constants.get_frustum_min_length_threshold()
+            && length < box_dims.0 * constants.get_frustum_max_length_threshold()
+            && dy.abs() < dx.abs() * constants.get_frustum_angle_threshold() {
+            // Medium-length horizontal channel - use frustum for flow control
+            Box::new(FrustumChannelStrategy::new(frustum_config))
         } else if Self::is_angled_channel(from, to)
             && length > box_dims.0 * constants.get_min_arc_length_threshold() {
             // Angled channel of reasonable length - use arc
             Box::new(ArcChannelStrategy::new(arc_config))
         } else {
-            // Default to straight
+            // Default to straight for short channels
             Box::new(StraightChannelStrategy)
         }
     }
@@ -1301,5 +1311,133 @@ impl ChannelTypeStrategy for CustomChannelStrategy {
         _neighbor_info: Option<&[f64]>,
     ) -> ChannelType {
         self.channel_type.clone()
+    }
+}
+
+/// Strategy for generating frustum (tapered) channels with venturi throat functionality
+///
+/// This strategy creates channels with variable width along their length, featuring:
+/// - Configurable inlet, throat, and outlet widths
+/// - Multiple taper profiles (linear, exponential, smooth)
+/// - Precise throat positioning
+/// - Smooth width transitions
+///
+/// The frustum channel is ideal for applications requiring flow acceleration/deceleration,
+/// such as venturi throats, flow focusing, or particle sorting.
+///
+/// # Design Principles
+/// - **Single Responsibility**: Focused solely on frustum channel generation
+/// - **Open/Closed**: Extensible for new taper profiles without modification
+/// - **Dependency Inversion**: Depends on abstractions (ChannelTypeStrategy trait)
+/// - **DRY**: Reuses common path generation patterns
+/// - **KISS**: Simple, clear implementation
+///
+/// # Examples
+///
+/// ```rust
+/// use scheme::geometry::strategies::FrustumChannelStrategy;
+/// use scheme::config::FrustumConfig;
+///
+/// let config = FrustumConfig::default();
+/// let strategy = FrustumChannelStrategy::new(config);
+/// ```
+#[derive(Debug, Clone)]
+pub struct FrustumChannelStrategy {
+    /// Configuration parameters for the frustum channel
+    config: FrustumConfig,
+}
+
+impl FrustumChannelStrategy {
+    /// Create a new frustum channel strategy with the specified configuration
+    ///
+    /// # Arguments
+    /// * `config` - Configuration parameters for the frustum channel
+    ///
+    /// # Returns
+    /// * `Self` - A new frustum channel strategy instance
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use scheme::geometry::strategies::FrustumChannelStrategy;
+    /// use scheme::config::FrustumConfig;
+    ///
+    /// let config = FrustumConfig::default();
+    /// let strategy = FrustumChannelStrategy::new(config);
+    /// ```
+    pub fn new(config: FrustumConfig) -> Self {
+        Self { config }
+    }
+
+    /// Generate the centerline path for the frustum channel
+    ///
+    /// Creates a straight line path from start to end point with the specified
+    /// number of points for smooth width transitions.
+    ///
+    /// # Arguments
+    /// * `from` - Starting point of the channel
+    /// * `to` - Ending point of the channel
+    ///
+    /// # Returns
+    /// * `Vec<Point2D>` - The centerline path points
+    fn generate_centerline_path(&self, from: Point2D, to: Point2D) -> Vec<Point2D> {
+        let mut path = Vec::with_capacity(self.config.smoothness);
+
+        for i in 0..self.config.smoothness {
+            let t = i as f64 / (self.config.smoothness - 1) as f64;
+            let x = from.0 + (to.0 - from.0) * t;
+            let y = from.1 + (to.1 - from.1) * t;
+            path.push((x, y));
+        }
+
+        path
+    }
+
+    /// Generate width values corresponding to each point in the path
+    ///
+    /// Calculates the width at each point along the channel using the
+    /// configured taper profile.
+    ///
+    /// # Arguments
+    /// * `path_length` - Number of points in the path
+    ///
+    /// # Returns
+    /// * `Vec<f64>` - Width values for each path point
+    fn generate_width_profile(&self, path_length: usize) -> Vec<f64> {
+        let mut widths = Vec::with_capacity(path_length);
+
+        for i in 0..path_length {
+            let t = i as f64 / (path_length - 1) as f64;
+            let width = self.config.width_at_position(t);
+            widths.push(width);
+        }
+
+        widths
+    }
+}
+
+impl ChannelTypeStrategy for FrustumChannelStrategy {
+    fn create_channel(
+        &self,
+        from: Point2D,
+        to: Point2D,
+        _geometry_config: &GeometryConfig,
+        _box_dims: (f64, f64),
+        _total_branches: usize,
+        _neighbor_info: Option<&[f64]>,
+    ) -> ChannelType {
+        // Generate the centerline path
+        let path = self.generate_centerline_path(from, to);
+
+        // Generate the width profile
+        let widths = self.generate_width_profile(path.len());
+
+        ChannelType::Frustum {
+            path,
+            widths,
+            inlet_width: self.config.inlet_width,
+            throat_width: self.config.throat_width,
+            outlet_width: self.config.outlet_width,
+        }
     }
 }

@@ -48,6 +48,7 @@ pub struct CollisionParameterSet {
 
 impl CollisionParameterSet {
     /// Create a new parameter set with default values from constants registry
+    #[must_use]
     pub fn from_constants_registry(_constants: &ConstantsRegistry) -> Self {
         Self {
             min_channel_distance: ConfigurableParameter::new(
@@ -103,6 +104,7 @@ impl CollisionParameterSet {
     }
     
     /// Get parameter values with optional adaptive context
+    #[must_use]
     pub fn get_values(&self, context: Option<&ChannelGenerationContext>) -> CollisionParameterValues {
         CollisionParameterValues {
             min_channel_distance: self.min_channel_distance.get_value(context),
@@ -139,26 +141,25 @@ pub struct DistanceBasedCollisionAdapter {
 
 impl Default for DistanceBasedCollisionAdapter {
     fn default() -> Self {
+        let constants = crate::config_constants::ConstantsRegistry::new();
         Self {
-            neighbor_scale_factor: 0.8,
-            min_distance_threshold: 1.0,
-            max_adjustment_factor: 2.0,
+            neighbor_scale_factor: constants.get_neighbor_scale_factor(),
+            min_distance_threshold: constants.get_min_distance_threshold(),
+            max_adjustment_factor: constants.get_max_adjustment_factor(),
         }
     }
 }
 
 impl AdaptiveParameter<f64, ChannelGenerationContext> for DistanceBasedCollisionAdapter {
     fn adapt(&self, base_value: f64, context: &ChannelGenerationContext) -> Result<f64, AdaptationError> {
-        if let Some(min_neighbor_dist) = context.min_neighbor_distance() {
+        context.min_neighbor_distance().map_or(Ok(base_value), |min_neighbor_dist| {
             // Adjust collision distance based on neighbor proximity
             let proximity_factor = (min_neighbor_dist / self.min_distance_threshold).min(self.max_adjustment_factor);
             let adjusted_value = base_value * proximity_factor * self.neighbor_scale_factor;
 
             // Ensure minimum threshold
             Ok(adjusted_value.max(self.min_distance_threshold))
-        } else {
-            Ok(base_value)
-        }
+        })
     }
     
     fn is_adaptive(&self) -> bool {
@@ -199,12 +200,12 @@ impl AdaptiveParameter<f64, ChannelGenerationContext> for ContextSensitivityAdap
         let mut sensitivity = base_value;
         
         // Adjust based on branch count
-        let branch_factor = 1.0 + (context.total_branches as f64 * self.branch_scale_factor);
+        let branch_factor = (context.total_branches as f64).mul_add(self.branch_scale_factor, 1.0);
         sensitivity *= branch_factor;
         
         // Adjust based on channel length
         let channel_length = context.channel_length();
-        let length_factor = 1.0 + (channel_length * self.length_scale_factor);
+        let length_factor = channel_length.mul_add(self.length_scale_factor, 1.0);
         sensitivity *= length_factor;
         
         // Cap at maximum sensitivity
@@ -246,6 +247,7 @@ impl Default for AdaptiveAvoidanceStrategy {
 
 impl AdaptiveAvoidanceStrategy {
     /// Calculate adaptive reduction factor based on collision result and context
+    #[must_use]
     pub fn calculate_reduction_factor(
         &self,
         collision_result: &CollisionDetectionResult,
@@ -292,6 +294,7 @@ impl AdaptiveAvoidanceStrategy {
 
 impl AdaptiveCollisionDetector {
     /// Create a new adaptive collision detector
+    #[must_use]
     pub fn new(constants: &ConstantsRegistry) -> Self {
         Self {
             base_parameters: CollisionParameterSet::from_constants_registry(constants),
@@ -302,6 +305,7 @@ impl AdaptiveCollisionDetector {
     }
     
     /// Get adaptive collision parameters for a given context
+    #[must_use]
     pub fn get_adaptive_parameters(&self, context: &ChannelGenerationContext) -> CollisionParameterValues {
         let mut values = self.base_parameters.get_values(Some(context));
         
@@ -314,6 +318,7 @@ impl AdaptiveCollisionDetector {
     }
     
     /// Calculate adaptive avoidance strategy
+    #[must_use]
     pub fn calculate_adaptive_avoidance(
         &self,
         collision_result: &CollisionDetectionResult,

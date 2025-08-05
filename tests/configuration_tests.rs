@@ -195,7 +195,7 @@ fn test_channel_type_config_builder() {
     // Test building smart configuration
     let smart_config = builder.build_smart();
     match smart_config {
-        ChannelTypeConfig::Smart { serpentine_config, arc_config } => {
+        ChannelTypeConfig::Smart { serpentine_config, arc_config, .. } => {
             assert_eq!(serpentine_config.fill_factor, constants::DEFAULT_FILL_FACTOR);
             assert_eq!(arc_config.curvature_factor, constants::DEFAULT_CURVATURE_FACTOR);
         },

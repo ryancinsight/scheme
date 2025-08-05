@@ -21,6 +21,15 @@ pub struct StrategyThresholds {
     
     /// Branch count threshold for adaptive behavior
     pub adaptive_branch_threshold: ConfigurableParameter<usize>,
+
+    /// Minimum length threshold for frustum channel selection in smart mode
+    pub frustum_min_length_threshold: ConfigurableParameter<f64>,
+
+    /// Maximum length threshold for frustum channel selection in smart mode
+    pub frustum_max_length_threshold: ConfigurableParameter<f64>,
+
+    /// Maximum angle threshold for frustum channel selection (horizontal preference)
+    pub frustum_angle_threshold: ConfigurableParameter<f64>,
 }
 
 impl StrategyThresholds {
@@ -77,6 +86,45 @@ impl StrategyThresholds {
                     "Branch count threshold to enable adaptive parameter behavior",
                     "strategy_selection"
                 )
+            ),
+
+            frustum_min_length_threshold: ConfigurableParameter::new(
+                0.3,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.1, 1.0),
+                ]),
+                ParameterMetadata::new(
+                    "frustum_min_length_threshold",
+                    "Minimum length threshold (as fraction of box width) for frustum channel selection",
+                    "strategy_selection"
+                ).with_units("fraction")
+            ),
+
+            frustum_max_length_threshold: ConfigurableParameter::new(
+                0.7,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.2, 1.0),
+                ]),
+                ParameterMetadata::new(
+                    "frustum_max_length_threshold",
+                    "Maximum length threshold (as fraction of box width) for frustum channel selection",
+                    "strategy_selection"
+                ).with_units("fraction")
+            ),
+
+            frustum_angle_threshold: ConfigurableParameter::new(
+                0.5,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.1, 2.0),
+                ]),
+                ParameterMetadata::new(
+                    "frustum_angle_threshold",
+                    "Maximum angle threshold for frustum channel selection (dy/dx ratio)",
+                    "strategy_selection"
+                ).with_units("ratio")
             ),
         }
     }
@@ -813,6 +861,96 @@ impl ConstantsRegistry {
         *self.optimization.branch_factor_exponent.get_raw_value()
     }
 
+    /// Get the minimum channel distance for collision detection
+    pub fn get_min_channel_distance(&self) -> f64 {
+        2.0 // TODO: Add to collision constants
+    }
+
+    /// Get the minimum wall distance for collision detection
+    pub fn get_min_wall_distance(&self) -> f64 {
+        1.0 // TODO: Add to collision constants
+    }
+
+    /// Get the safety margin factor for collision detection
+    pub fn get_safety_margin_factor(&self) -> f64 {
+        1.2 // TODO: Add to collision constants
+    }
+
+    /// Get the maximum reduction factor for collision avoidance
+    pub fn get_max_reduction_factor(&self) -> f64 {
+        0.8 // TODO: Add to collision constants
+    }
+
+    /// Get the detection sensitivity for collision detection
+    pub fn get_detection_sensitivity(&self) -> f64 {
+        1.0 // TODO: Add to collision constants
+    }
+
+    /// Get the neighbor scale factor for adaptive collision detection
+    pub fn get_neighbor_scale_factor(&self) -> f64 {
+        0.8 // TODO: Add to collision constants
+    }
+
+    /// Get the minimum distance threshold for adaptive collision detection
+    pub fn get_min_distance_threshold(&self) -> f64 {
+        1.0 // TODO: Add to collision constants
+    }
+
+    /// Get the maximum adjustment factor for adaptive collision detection
+    pub fn get_max_adjustment_factor(&self) -> f64 {
+        2.0 // TODO: Add to collision constants
+    }
+
+    /// Get the maximum number of optimization iterations
+    pub fn get_max_optimization_iterations(&self) -> usize {
+        50 // TODO: Add to optimization constants
+    }
+
+    /// Get the optimization tolerance
+    pub fn get_optimization_tolerance(&self) -> f64 {
+        1e-6 // TODO: Add to optimization constants
+    }
+
+    /// Get the proximity divisor for collision detection
+    pub fn get_proximity_divisor(&self) -> f64 {
+        10.0 // TODO: Add to collision constants
+    }
+
+    /// Get the minimum proximity factor for collision detection
+    pub fn get_min_proximity_factor(&self) -> f64 {
+        0.5 // TODO: Add to collision constants
+    }
+
+    /// Get the maximum proximity factor for collision detection
+    pub fn get_max_proximity_factor(&self) -> f64 {
+        1.0 // TODO: Add to collision constants
+    }
+
+    /// Get the branch adjustment divisor for collision detection
+    pub fn get_branch_adjustment_divisor(&self) -> f64 {
+        4.0 // TODO: Add to collision constants
+    }
+
+    /// Get the maximum sensitivity multiplier for collision detection
+    pub fn get_max_sensitivity_multiplier(&self) -> f64 {
+        2.0 // TODO: Add to collision constants
+    }
+
+    /// Get the long channel threshold for collision detection
+    pub fn get_long_channel_threshold(&self) -> f64 {
+        50.0 // TODO: Add to collision constants
+    }
+
+    /// Get the long channel reduction multiplier for collision detection
+    pub fn get_long_channel_reduction_multiplier(&self) -> f64 {
+        1.2 // TODO: Add to collision constants
+    }
+
+    /// Get the maximum reduction limit for collision detection
+    pub fn get_max_reduction_limit(&self) -> f64 {
+        0.95 // TODO: Add to collision constants
+    }
+
     /// Get the fill factor enhancement multiplier
     pub fn get_fill_factor_enhancement(&self) -> f64 {
         *self.optimization.fill_factor_enhancement.get_raw_value()
@@ -951,5 +1089,20 @@ impl ConstantsRegistry {
     /// Get the default boundary buffer factor
     pub fn get_default_boundary_buffer_factor(&self) -> f64 {
         *self.visualization.default_boundary_buffer_factor.get_raw_value()
+    }
+
+    /// Get the frustum minimum length threshold
+    pub fn get_frustum_min_length_threshold(&self) -> f64 {
+        *self.strategy_thresholds.frustum_min_length_threshold.get_raw_value()
+    }
+
+    /// Get the frustum maximum length threshold
+    pub fn get_frustum_max_length_threshold(&self) -> f64 {
+        *self.strategy_thresholds.frustum_max_length_threshold.get_raw_value()
+    }
+
+    /// Get the frustum angle threshold
+    pub fn get_frustum_angle_threshold(&self) -> f64 {
+        *self.strategy_thresholds.frustum_angle_threshold.get_raw_value()
     }
 }
