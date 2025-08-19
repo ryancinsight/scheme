@@ -1285,7 +1285,7 @@ pub mod presets {
             fill_factor: 0.6,
             wavelength_factor: 4.0,
             gaussian_width_factor: 10.0,
-            wave_density_factor: 1.5,
+            wave_density_factor: 1.0, // Lower than default (1.5) for smoother, less dense waves
             wave_phase_direction: 0.0, // Auto-symmetric
             wave_shape: WaveShape::default(), // Default to sine wave
             optimization_enabled: false,

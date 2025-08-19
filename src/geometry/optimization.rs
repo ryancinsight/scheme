@@ -823,7 +823,7 @@ fn calculate_optimized_amplitude(
     neighbor_info: Option<&[f64]>,
 ) -> f64 {
     let constants = crate::config_constants::ConstantsRegistry::new();
-    let min_wall_thickness = constants.get_min_wall_thickness();
+    let _min_wall_thickness = constants.get_min_wall_thickness();
     let channel_center_y = f64::midpoint(p1.1, p2.1);
 
     // Dynamic space analysis with aggressive space utilization

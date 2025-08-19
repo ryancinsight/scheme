@@ -6,7 +6,7 @@ use scheme::config_constants::ConstantsRegistry;
 #[test]
 fn test_diameter_aware_amplitude_calculation() {
     let constants = ConstantsRegistry::new();
-    let min_wall_thickness = constants.get_min_wall_thickness();
+    let _min_wall_thickness = constants.get_min_wall_thickness();
     
     // Test with different channel widths
     let test_cases = vec![

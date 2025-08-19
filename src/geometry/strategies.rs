@@ -642,7 +642,7 @@ impl SerpentineChannelStrategy {
         channel_center_y: f64,
         box_height: f64,
         wall_clearance: f64,
-        min_wall_thickness: f64,
+        _min_wall_thickness: f64,
         neighbor_info: &[f64],
     ) -> f64 {
         // Find the closest neighbors above and below
