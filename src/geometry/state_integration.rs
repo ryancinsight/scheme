@@ -51,8 +51,8 @@ impl SerpentineParameterIntegration {
         self.use_adaptive = adaptive;
     }
     
-    /// Convert legacy SerpentineConfig to state-managed parameters
-    pub fn apply_legacy_config(&mut self, config: &SerpentineConfig) -> SchemeResult<()> {
+    /// Apply SerpentineConfig to state-managed parameters
+    pub fn apply_serpentine_config(&mut self, config: &SerpentineConfig) -> SchemeResult<()> {
         // Get mutable access to serpentine manager
         let serpentine_manager = self.registry.serpentine_mut()
             .map_err(|e| SchemeError::Configuration(
@@ -181,15 +181,15 @@ impl ArcParameterIntegration {
         self.use_adaptive = adaptive;
     }
 
-    /// Convert legacy ArcConfig to state-managed parameters
-    pub fn apply_legacy_config(&mut self, _config: &ArcConfig) -> SchemeResult<()> {
+    /// Apply ArcConfig to state-managed parameters
+    pub fn apply_arc_config(&mut self, _config: &ArcConfig) -> SchemeResult<()> {
         // Get mutable access to arc manager
         let _arc_manager = self.registry.arc_mut()
             .map_err(|e| SchemeError::Configuration(
                 ConfigurationError::MissingConfiguration { field: e.to_string() }
             ))?;
 
-        // Map legacy parameters to new parameter system
+        // Map parameters to new parameter system
         // For now, we'll store the config directly since the arc manager methods are stubs
         // In a full implementation, these would use proper parameter management
 
@@ -747,7 +747,7 @@ mod tests {
         let legacy_config = SerpentineConfig::default();
 
         // Apply legacy config
-        assert!(integration.apply_legacy_config(&legacy_config).is_ok());
+        assert!(integration.apply_serpentine_config(&legacy_config).is_ok());
 
         // Validate after conversion
         assert!(integration.validate().is_ok());
@@ -790,7 +790,7 @@ mod tests {
         let legacy_config = ArcConfig::default();
 
         // Apply legacy config
-        assert!(integration.apply_legacy_config(&legacy_config).is_ok());
+        assert!(integration.apply_arc_config(&legacy_config).is_ok());
 
         // Validate after conversion
         assert!(integration.validate().is_ok());

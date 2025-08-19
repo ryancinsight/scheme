@@ -159,12 +159,12 @@ fn test_serpentine_channels() {
 fn test_mixed_channel_types() {
     let config = GeometryConfig::default();
     
-    // Create system with mixed channel types using Smart configuration
+    // Create system with mixed channel types using Adaptive configuration
     let system = create_geometry(
         (200.0, 100.0),
         &[SplitType::Bifurcation, SplitType::Trifurcation],
         &config,
-        &ChannelTypeConfig::default(), // Uses Smart configuration
+        &ChannelTypeConfig::default(), // Uses Adaptive configuration
     );
 
     // Should have straight channels at minimum
@@ -442,17 +442,17 @@ fn test_arc_channels() {
     }
 }
 
-/// Test smart channel type selection
+/// Test adaptive channel type selection
 #[test]
-fn test_smart_channel_types() {
+fn test_adaptive_channel_types() {
     let config = GeometryConfig::default();
-    
-    // Create system with smart channel type selection
+
+    // Create system with adaptive channel type selection
     let system = create_geometry(
         (300.0, 100.0),  // Wider to ensure we get different zones
         &[SplitType::Bifurcation, SplitType::Trifurcation],
         &config,
-        &ChannelTypeConfig::Smart {
+        &ChannelTypeConfig::Adaptive {
             serpentine_config: SerpentineConfig::default(),
             arc_config: ArcConfig::default(),
             frustum_config: FrustumConfig::default(),
@@ -472,8 +472,8 @@ fn test_smart_channel_types() {
         }
     }
     
-    // Smart selection should produce at least straight channels
-    assert!(channel_types.contains("straight"), "Smart selection should include straight channels");
+    // Adaptive selection should produce at least straight channels
+    assert!(channel_types.contains("straight"), "Adaptive selection should include straight channels");
 }
 
 /// Test that the geometry generation produces symmetric channel layouts

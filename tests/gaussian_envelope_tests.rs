@@ -1,10 +1,16 @@
+//! Tests for Gaussian envelope functionality
+//!
+//! This test suite validates the Gaussian envelope calculations
+//! for serpentine channel generation with distance normalization
+//! and optimization integration.
+
 use scheme::{
     config::{ChannelTypeConfig, GeometryConfig, SerpentineConfig},
     geometry::{generator::create_geometry, SplitType},
 };
 
 #[test]
-fn test_improved_gaussian_envelope_distance_normalization() {
+fn test_gaussian_envelope_distance_normalization() {
     let config = GeometryConfig::default();
     
     // Create a configuration with a small gaussian_width_factor to make the effect more pronounced
@@ -136,7 +142,7 @@ fn test_gaussian_envelope_preserves_symmetry() {
 }
 
 #[test]
-fn test_improved_envelope_with_optimization() {
+fn test_envelope_with_optimization() {
     let config = GeometryConfig::default();
     
     let optimized_serpentine_config = SerpentineConfig {

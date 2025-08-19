@@ -160,7 +160,7 @@ fn test_mixed_channels() -> Result<(), Box<dyn std::error::Error>> {
         (100.0, 50.0),
         &[SplitType::Bifurcation],
         &GeometryConfig::default(),
-        &ChannelTypeConfig::Smart {
+        &ChannelTypeConfig::Adaptive {
             serpentine_config: SerpentineConfig::default(),
             arc_config: ArcConfig::default(),
             frustum_config: FrustumConfig::default(),

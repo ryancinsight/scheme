@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     demonstrate_all_straight()?;
     demonstrate_all_serpentine()?;
     demonstrate_all_frustum()?;
-    demonstrate_mixed_smart_system()?;
+    demonstrate_mixed_adaptive_system()?;
     demonstrate_custom_colors()?;
 
     println!("✅ All colored demonstrations completed successfully!");
@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   • colored_all_straight.svg (black channels)");
     println!("   • colored_all_serpentine.svg (blue channels)");
     println!("   • colored_all_frustum.svg (red channels)");
-    println!("   • colored_mixed_smart.svg (mixed colors)");
+    println!("   • colored_mixed_adaptive.svg (mixed colors)");
     println!("   • colored_custom_colors.svg (custom color scheme)");
     
     Ok(())
@@ -112,20 +112,20 @@ fn demonstrate_all_frustum() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Demonstrate mixed smart system with multiple channel types
-fn demonstrate_mixed_smart_system() -> Result<(), Box<dyn std::error::Error>> {
-    println!("4️⃣  Mixed Smart System (Multiple Colors)");
-    
+/// Demonstrate mixed adaptive system with multiple channel types
+fn demonstrate_mixed_adaptive_system() -> Result<(), Box<dyn std::error::Error>> {
+    println!("4️⃣  Mixed Adaptive System (Multiple Colors)");
+
     // Create a larger system to encourage different channel types
     let system = create_geometry(
         (200.0, 100.0),
         &[SplitType::Bifurcation, SplitType::Trifurcation, SplitType::Bifurcation],
         &GeometryConfig::default(),
-        &ChannelTypeConfig::default(), // Smart selection
+        &ChannelTypeConfig::default(), // Adaptive selection
     );
     
-    plot_geometry(&system, "outputs/colored_mixed_smart.svg")?;
-    println!("   ✅ Mixed system: saved to colored_mixed_smart.svg");
+    plot_geometry(&system, "outputs/colored_mixed_adaptive.svg")?;
+    println!("   ✅ Mixed system: saved to colored_mixed_adaptive.svg");
     
     // Analyze channel types
     let mut channel_counts = std::collections::HashMap::new();
@@ -170,7 +170,7 @@ fn demonstrate_custom_colors() -> Result<(), Box<dyn std::error::Error>> {
         (150.0, 80.0),
         &[SplitType::Bifurcation, SplitType::Trifurcation],
         &GeometryConfig::default(),
-        &ChannelTypeConfig::Smart {
+        &ChannelTypeConfig::Adaptive {
             serpentine_config: SerpentineConfig::default(),
             arc_config: ArcConfig::default(),
             frustum_config: FrustumConfig::default(),

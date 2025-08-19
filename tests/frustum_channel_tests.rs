@@ -169,9 +169,11 @@ fn test_frustum_channel_strategy() {
             assert_eq!(throat_width, config.throat_width);
             assert_eq!(outlet_width, config.outlet_width);
             
-            // Check that path goes from start to end
-            assert_eq!(path[0], from);
-            assert_eq!(path[path.len() - 1], to);
+            // Check that path goes from start to end (with floating point tolerance)
+            assert!((path[0].0 - from.0).abs() < 1e-10);
+            assert!((path[0].1 - from.1).abs() < 1e-10);
+            assert!((path[path.len() - 1].0 - to.0).abs() < 1e-10);
+            assert!((path[path.len() - 1].1 - to.1).abs() < 1e-10);
             
             // Check that widths match configuration
             assert!((widths[0] - inlet_width).abs() < 1e-10);
@@ -212,10 +214,10 @@ fn test_factory_all_frustum() {
     }
 }
 
-/// Test Smart configuration includes frustum channels
+/// Test Adaptive configuration includes frustum channels
 #[test]
-fn test_smart_configuration_with_frustum() {
-    let config = ChannelTypeConfig::default(); // Smart configuration
+fn test_adaptive_configuration_with_frustum() {
+    let config = ChannelTypeConfig::default(); // Adaptive configuration
     
     // Test medium-length horizontal channel (should potentially be frustum)
     let strategy = ChannelTypeFactory::create_strategy(
@@ -238,7 +240,7 @@ fn test_smart_configuration_with_frustum() {
     match channel_type {
         ChannelType::Straight | ChannelType::Serpentine { .. } | 
         ChannelType::Arc { .. } | ChannelType::Frustum { .. } => {}, // All valid
-        _ => panic!("Smart config should produce valid channel type"),
+        _ => panic!("Adaptive config should produce valid channel type"),
     }
 }
 

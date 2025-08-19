@@ -75,14 +75,14 @@ pub mod constants {
     pub const MAX_PLATEAU_WIDTH_FACTOR: f64 = 0.8;
 
     /// Default horizontal ratio threshold for middle section detection
-    pub const DEFAULT_HORIZONTAL_RATIO_THRESHOLD: f64 = 0.8;
+    pub const DEFAULT_HORIZONTAL_RATIO_THRESHOLD: f64 = 1.01;
     /// Minimum horizontal ratio threshold
     pub const MIN_HORIZONTAL_RATIO_THRESHOLD: f64 = 0.5;
     /// Maximum horizontal ratio threshold
     pub const MAX_HORIZONTAL_RATIO_THRESHOLD: f64 = 0.95;
 
     /// Default middle section amplitude factor
-    pub const DEFAULT_MIDDLE_SECTION_AMPLITUDE_FACTOR: f64 = 0.3;
+    pub const DEFAULT_MIDDLE_SECTION_AMPLITUDE_FACTOR: f64 = 0.7;
     /// Minimum middle section amplitude factor
     pub const MIN_MIDDLE_SECTION_AMPLITUDE_FACTOR: f64 = 0.1;
     /// Maximum middle section amplitude factor
@@ -121,7 +121,7 @@ pub mod constants {
     /// Maximum wavelength factor for serpentine channels
     pub const MAX_WAVELENGTH_FACTOR: f64 = 10.0;
     /// Default wavelength factor for serpentine channels
-    pub const DEFAULT_WAVELENGTH_FACTOR: f64 = 3.0;
+    pub const DEFAULT_WAVELENGTH_FACTOR: f64 = 6.0;
 
     /// Minimum Gaussian width factor for serpentine channels
     pub const MIN_GAUSSIAN_WIDTH_FACTOR: f64 = 2.0;
@@ -135,7 +135,7 @@ pub mod constants {
     /// Maximum wave density factor for serpentine channels
     pub const MAX_WAVE_DENSITY_FACTOR: f64 = 10.0;
     /// Default wave density factor for serpentine channels
-    pub const DEFAULT_WAVE_DENSITY_FACTOR: f64 = 2.5;
+    pub const DEFAULT_WAVE_DENSITY_FACTOR: f64 = 1.5;
 
     /// Minimum curvature factor for arc channels
     pub const MIN_CURVATURE_FACTOR: f64 = 0.0;
@@ -1176,8 +1176,8 @@ impl Default for FrustumConfig {
 /// // All channels will be frustum (tapered) with default parameters
 /// let frustum_config = ChannelTypeConfig::AllFrustum(FrustumConfig::default());
 ///
-/// // Smart selection based on channel characteristics
-/// let smart_config = ChannelTypeConfig::Smart {
+/// // Adaptive selection based on channel characteristics
+/// let adaptive_config = ChannelTypeConfig::Adaptive {
 ///     serpentine_config: SerpentineConfig::default(),
 ///     arc_config: ArcConfig::default(),
 ///     frustum_config: FrustumConfig::default(),
@@ -1204,13 +1204,13 @@ pub enum ChannelTypeConfig {
         /// Configuration for arc channels outside the middle zone
         arc_config: ArcConfig,
     },
-    /// Intelligent channel type selection based on channel characteristics
-    Smart {
-        /// Configuration for serpentine channels when selected by smart algorithm
+    /// Adaptive channel type selection based on channel characteristics
+    Adaptive {
+        /// Configuration for serpentine channels when selected by adaptive algorithm
         serpentine_config: SerpentineConfig,
-        /// Configuration for arc channels when selected by smart algorithm
+        /// Configuration for arc channels when selected by adaptive algorithm
         arc_config: ArcConfig,
-        /// Configuration for frustum channels when selected by smart algorithm
+        /// Configuration for frustum channels when selected by adaptive algorithm
         frustum_config: FrustumConfig,
     },
     /// Smooth serpentine channels with smooth straight junction connectors
@@ -1226,7 +1226,7 @@ pub enum ChannelTypeConfig {
 
 impl Default for ChannelTypeConfig {
     fn default() -> Self {
-        ChannelTypeConfig::Smart {
+        ChannelTypeConfig::Adaptive {
             serpentine_config: SerpentineConfig::default(),
             arc_config: ArcConfig::default(),
             frustum_config: FrustumConfig::default(),
@@ -1566,9 +1566,9 @@ impl ChannelTypeConfigBuilder {
         self
     }
 
-    /// Build a smart channel type configuration
-    pub fn build_smart(self) -> ChannelTypeConfig {
-        ChannelTypeConfig::Smart {
+    /// Build an adaptive channel type configuration
+    pub fn build_adaptive(self) -> ChannelTypeConfig {
+        ChannelTypeConfig::Adaptive {
             serpentine_config: self.serpentine_config,
             arc_config: self.arc_config,
             frustum_config: self.frustum_config,

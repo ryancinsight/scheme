@@ -28,6 +28,13 @@ pub struct ChannelGenerationContext<'a> {
     pub neighbor_info: Option<&'a [f64]>,
 }
 
+/// Space metrics for amplitude calculation
+#[derive(Debug, Clone)]
+struct SpaceMetrics {
+    /// Available space for amplitude expansion
+    available_space: f64,
+}
+
 impl<'a> ChannelGenerationContext<'a> {
     /// Create a new channel generation context
     pub fn new(
@@ -136,25 +143,54 @@ impl EnvelopeCalculator for AdaptiveGaussianEnvelopeCalculator {
         // Center the envelope
         let center = 0.5;
 
-        // Calculate Gaussian envelope
-        let gaussian = (-0.5 * ((t - center) / (effective_sigma / channel_length)).powi(2)).exp();
+        // Create smooth dome-shaped envelope instead of sharp Gaussian peaks
+        // This prevents self-intersection when channels curve back on themselves
+        let dome_envelope = if (t - center).abs() < 0.45 {
+            // Use raised cosine for the main dome (much smoother than Gaussian)
+            let normalized_t = (t - center) / 0.45; // Scale to [-1, 1] range
+            let cosine_factor = 0.5 * (1.0 + (std::f64::consts::PI * normalized_t).cos());
 
-        // For middle sections, add a plateau in the center to maintain full amplitude
+            // Apply effective sigma scaling to the dome
+            let sigma_factor = (effective_sigma / channel_length).min(0.3).max(0.1);
+            let dome_width = 0.45 * sigma_factor / 0.2; // Scale dome width based on sigma
+
+            if (t - center).abs() < dome_width {
+                let dome_t = (t - center) / dome_width;
+                0.5 * (1.0 + (std::f64::consts::PI * dome_t).cos())
+            } else {
+                // Smooth transition to zero
+                let transition_factor = ((t - center).abs() - dome_width) / (0.45 - dome_width);
+                let smoothstep = 1.0 - transition_factor * transition_factor * (3.0 - 2.0 * transition_factor);
+                cosine_factor * smoothstep * 0.1
+            }
+        } else {
+            // Smooth transition to zero at edges using smoothstep
+            let edge_distance = ((t - center).abs() - 0.45) / 0.05; // 0.05 is transition zone
+            if edge_distance < 1.0 && edge_distance >= 0.0 {
+                let smoothstep = 1.0 - edge_distance * edge_distance * (3.0 - 2.0 * edge_distance);
+                smoothstep * 0.05 // Very small amplitude at edges
+            } else {
+                0.0
+            }
+        };
+
+        // For middle sections, enhance the dome but keep it smooth
         if is_horizontal && horizontal_ratio > context.adaptive_config.horizontal_ratio_threshold {
-            let plateau_width = context.adaptive_config.plateau_width_factor;
+            let plateau_width = context.adaptive_config.plateau_width_factor.min(0.3); // Limit plateau width
             let plateau_start = 0.5 - plateau_width / 2.0;
             let plateau_end = 0.5 + plateau_width / 2.0;
 
             if t >= plateau_start && t <= plateau_end {
-                // In the plateau region, blend between Gaussian and full amplitude
+                // In the plateau region, enhance the dome but keep it smooth
                 let plateau_factor = 1.0 - ((t - 0.5).abs() / (plateau_width / 2.0));
-                gaussian.max(context.adaptive_config.plateau_amplitude_factor +
-                    (1.0 - context.adaptive_config.plateau_amplitude_factor) * plateau_factor)
+                let enhanced_amplitude = context.adaptive_config.plateau_amplitude_factor +
+                    (1.0 - context.adaptive_config.plateau_amplitude_factor) * plateau_factor;
+                dome_envelope.max(enhanced_amplitude * dome_envelope)
             } else {
-                gaussian
+                dome_envelope
             }
         } else {
-            gaussian
+            dome_envelope
         }
     }
 }
@@ -521,26 +557,238 @@ impl SerpentineChannelStrategy {
         }
     }
 
-    /// Generate a serpentine path between two points
+    /// Calculate maximum safe amplitude using advanced adaptive algorithms
+    fn calculate_adaptive_amplitude(
+        &self,
+        p1: Point2D,
+        p2: Point2D,
+        context: &ChannelGenerationContext,
+        wavelength: f64,
+    ) -> f64 {
+        let constants = ConstantsRegistry::new();
+        let channel_width = context.geometry_config.channel_width;
+        let min_wall_thickness = constants.get_min_wall_thickness();
+
+        // Dynamic space analysis with aggressive space utilization
+        let space_metrics = self.analyze_space_metrics(p1, p2, context);
+
+        // Use the full available space calculated dynamically
+        // The space_metrics already accounts for neighbors and walls properly
+        let base_amplitude = space_metrics.available_space;
+
+        // Apply wavelength constraints
+        let wavelength_factor = self.calculate_wavelength_scaling_factor(wavelength, channel_width, min_wall_thickness);
+        let wavelength_constrained_amplitude = base_amplitude * wavelength_factor;
+
+        // Apply modest enhancements
+        let density_factor = self.calculate_density_enhancement_factor(context);
+        let enhanced_amplitude = wavelength_constrained_amplitude * density_factor;
+
+        // Apply fill factor more aggressively for dynamic amplitude
+        // Use higher fill factor when we have calculated dynamic space precisely
+        let dynamic_fill_factor = if context.neighbor_info.is_some() {
+            // For multi-channel systems, use higher fill factor since we calculated precise space
+            (self.config.fill_factor + 0.15).min(0.95)
+        } else {
+            // For single channels, use configured fill factor
+            self.config.fill_factor
+        };
+        let amplitude_with_fill = enhanced_amplitude * dynamic_fill_factor;
+
+        // Ensure minimum visibility - but don't override dynamic calculation
+        let min_amplitude = channel_width * 2.0; // Reduced since we have dynamic calculation
+
+        // Only apply minimum if dynamic calculation resulted in very small amplitude
+        if amplitude_with_fill < min_amplitude && amplitude_with_fill < base_amplitude * 0.5 {
+            min_amplitude
+        } else {
+            amplitude_with_fill
+        }
+    }
+
+    /// Space metrics analysis for amplitude calculation with dynamic space utilization
+    fn analyze_space_metrics(&self, p1: Point2D, p2: Point2D, context: &ChannelGenerationContext) -> SpaceMetrics {
+        let channel_center_y = f64::midpoint(p1.1, p2.1);
+        let box_height = context.box_dims.1;
+        let wall_clearance = context.geometry_config.wall_clearance;
+        let min_wall_thickness = ConstantsRegistry::new().get_min_wall_thickness();
+
+        // Calculate available space considering neighbors and walls
+        let available_space = if let Some(neighbor_info) = context.neighbor_info {
+            self.calculate_dynamic_available_space(channel_center_y, box_height, wall_clearance, min_wall_thickness, neighbor_info)
+        } else {
+            // Single channel - use full box space minus wall clearances
+            let space_above = box_height - channel_center_y - wall_clearance;
+            let space_below = channel_center_y - wall_clearance;
+            space_above.min(space_below)
+        };
+
+        SpaceMetrics {
+            available_space,
+        }
+    }
+
+    /// Calculate minimum turn radius based on channel diameter
+    fn calculate_minimum_turn_radius(&self, channel_diameter: f64) -> f64 {
+        // Minimum turn radius = channel diameter + safety margin
+        // This prevents self-intersection during U-turns
+        let safety_margin = 0.1; // 0.1mm safety margin
+        channel_diameter + safety_margin
+    }
+
+    /// Calculate dynamic available space with proper geometric constraints
+    fn calculate_dynamic_available_space(
+        &self,
+        channel_center_y: f64,
+        box_height: f64,
+        wall_clearance: f64,
+        min_wall_thickness: f64,
+        neighbor_info: &[f64],
+    ) -> f64 {
+        // Find the closest neighbors above and below
+        let mut closest_above = box_height;
+        let mut closest_below: f64 = 0.0;
+
+        for &neighbor_y in neighbor_info {
+            if (neighbor_y - channel_center_y).abs() > 0.1 { // Exclude self (within 0.1mm tolerance)
+                if neighbor_y > channel_center_y {
+                    closest_above = closest_above.min(neighbor_y);
+                } else {
+                    closest_below = closest_below.max(neighbor_y);
+                }
+            }
+        }
+
+        // Calculate distance to nearest neighbor
+        let distance_to_neighbor_above = closest_above - channel_center_y;
+        let distance_to_neighbor_below = channel_center_y - closest_below;
+        let min_neighbor_distance = distance_to_neighbor_above.min(distance_to_neighbor_below);
+
+        // Calculate distance to walls
+        let distance_to_top_wall = box_height - channel_center_y;
+        let distance_to_bottom_wall = channel_center_y;
+        let min_wall_distance = distance_to_top_wall.min(distance_to_bottom_wall);
+
+        // Available space is constrained by both neighbors and walls
+        let neighbor_constraint = if min_neighbor_distance < box_height {
+            // Conservative: use 40% of distance to nearest neighbor, minus safety margin
+            (min_neighbor_distance * 0.4) - 1.0 // 1mm safety margin
+        } else {
+            f64::INFINITY // No neighbors
+        };
+
+        let wall_constraint = min_wall_distance - wall_clearance;
+
+        // Use the most restrictive constraint
+        let available_space = neighbor_constraint.min(wall_constraint).max(0.0);
+
+        // Ensure minimum turn radius constraint
+        let channel_diameter = 0.45; // Default channel diameter
+        let min_turn_radius = self.calculate_minimum_turn_radius(channel_diameter);
+        let min_amplitude_for_turns = min_turn_radius * 2.0; // Amplitude must allow U-turns
+
+        // Define minimum meaningful serpentine amplitude threshold
+        let min_meaningful_amplitude = 3.0; // 3mm - below this, keep channels flat
+
+        // If available space is too small for meaningful serpentines, return 0 (flat channel)
+        if available_space < min_meaningful_amplitude {
+            0.0
+        } else {
+            // Return the most restrictive constraint, but ensure minimum turn radius
+            available_space.max(min_amplitude_for_turns)
+        }
+    }
+
+
+
+
+
+
+
+    /// Calculate wavelength-aware scaling factor with adaptive thresholds
+    fn calculate_wavelength_scaling_factor(&self, wavelength: f64, channel_width: f64, min_wall_thickness: f64) -> f64 {
+        let min_separation = channel_width + min_wall_thickness;
+        let wavelength_ratio = wavelength / min_separation;
+
+        // Adaptive scaling based on wavelength ratio
+        if wavelength_ratio >= 3.0 {
+            1.0 // Full utilization for large wavelengths
+        } else if wavelength_ratio >= 2.0 {
+            0.95 // Near-full utilization
+        } else if wavelength_ratio >= 1.5 {
+            0.85 // Good utilization
+        } else if wavelength_ratio >= 1.2 {
+            0.75 // Moderate utilization
+        } else {
+            0.65 // Conservative but still aggressive
+        }
+    }
+
+
+
+    /// Calculate density enhancement factor for better space utilization
+    fn calculate_density_enhancement_factor(&self, context: &ChannelGenerationContext) -> f64 {
+        let box_area = context.box_dims.0 * context.box_dims.1;
+        let branch_density = context.total_branches as f64 / box_area;
+
+        // More conservative enhancement for lower density layouts
+        if branch_density < 0.01 {
+            1.08 // 8% boost for sparse layouts
+        } else if branch_density < 0.02 {
+            1.05 // 5% boost for moderate layouts
+        } else if branch_density < 0.05 {
+            1.02 // 2% boost for dense layouts
+        } else {
+            1.0  // No boost for very dense layouts
+        }
+    }
+
+
+
+
+
+    /// Validate and adjust wavelength for manufacturing constraints (enhanced)
+    fn validate_wavelength_for_diameter(&self, wavelength: f64, channel_width: f64) -> f64 {
+        let constants = ConstantsRegistry::new();
+        let min_wall_thickness = constants.get_min_wall_thickness();
+
+        // Conservative minimum wavelength calculation for proper serpentine spacing
+        let min_separation = channel_width + min_wall_thickness;
+        let min_wavelength = min_separation * 3.0; // Increased for better serpentine channel spacing
+
+        wavelength.max(min_wavelength)
+    }
+
+    /// Generate a serpentine path between two points using zero-copy techniques
     fn generate_serpentine_path(
         &self,
         p1: Point2D,
         p2: Point2D,
         context: &ChannelGenerationContext,
     ) -> Vec<Point2D> {
+        // Check if amplitude is below threshold - if so, return straight line
+        let initial_wavelength = self.config.wavelength_factor * context.geometry_config.channel_width;
+        let wavelength = self.validate_wavelength_for_diameter(initial_wavelength, context.geometry_config.channel_width);
+        let amplitude = self.calculate_adaptive_amplitude(p1, p2, context, wavelength);
+
+        if amplitude <= 0.0 {
+            // Return straight line when amplitude is too small for meaningful serpentines
+            return self.generate_straight_line_path(p1, p2, context.geometry_config.generation.serpentine_points);
+        }
+
         let n_points = context.geometry_config.generation.serpentine_points;
-        let mut path = Vec::with_capacity(n_points);
 
         let dx = p2.0 - p1.0;
         let dy = p2.1 - p1.1;
-        let channel_length = (dx * dx + dy * dy).sqrt();
+        let channel_length = dx.hypot(dy); // More efficient than sqrt(dx*dx + dy*dy)
         let _angle = dy.atan2(dx);
 
         let constants = ConstantsRegistry::new();
         let _branch_factor = (context.total_branches as f64).powf(constants.get_branch_factor_exponent()).max(1.0);
 
         // Calculate number of periods to ensure complete wave cycles
-        let base_wavelength = self.config.wavelength_factor * context.geometry_config.channel_width;
+        let initial_wavelength = self.config.wavelength_factor * context.geometry_config.channel_width;
+        let base_wavelength = self.validate_wavelength_for_diameter(initial_wavelength, context.geometry_config.channel_width);
 
         // For smooth endpoint transitions, use half-periods to ensure zero amplitude at endpoints
         // Scale the number of periods with channel length and ensure minimum complete cycles
@@ -549,14 +797,17 @@ impl SerpentineChannelStrategy {
         // Round to nearest integer number of half-periods to ensure sin(π*n) = 0 at endpoints
         let half_periods = (base_periods * 2.0).round().max(1.0);
 
-        // Calculate amplitude with neighbor awareness
-        let amplitude = self.calculate_amplitude(p1, p2, context);
+        // Calculate amplitude with advanced adaptive algorithms
+        let initial_amplitude = self.calculate_adaptive_amplitude(p1, p2, context, base_wavelength);
 
         // Calculate wave phase direction for perfect mirror symmetry
         let phase_direction = self.calculate_wave_phase_direction(p1, p2, context.box_dims);
 
         // Gaussian envelope parameters
         // Note: sigma and center are now calculated in the improved envelope function
+
+        // Pre-allocate path with exact capacity
+        let mut path = Vec::with_capacity(n_points);
 
         for i in 0..n_points {
             let t = i as f64 / (n_points - 1) as f64;
@@ -565,21 +816,17 @@ impl SerpentineChannelStrategy {
             let base_x = p1.0 + t * dx;
             let base_y = p1.1 + t * dy;
 
-            // Use envelope calculators for clean separation of concerns
-            let smooth_calculator = SmoothEndpointEnvelopeCalculator;
-            let gaussian_calculator = AdaptiveGaussianEnvelopeCalculator;
-
+            // Use the improved envelope that respects adaptive configuration
+            let node_distance = (dx * dx + dy * dy).sqrt();
             let envelope_context = EnvelopeContext {
                 channel_length,
                 direction: (dx, dy),
-                node_distance: channel_length, // Simplified for now
+                node_distance,
                 adaptive_config: self.config.adaptive_config,
                 gaussian_width_factor: self.config.gaussian_width_factor,
             };
-
-            let smooth_envelope = smooth_calculator.calculate_envelope(t, &envelope_context);
-            let gaussian_envelope = gaussian_calculator.calculate_envelope(t, &envelope_context);
-            let envelope = smooth_envelope * gaussian_envelope;
+            let improved_envelope_calc = AdaptiveGaussianEnvelopeCalculator;
+            let envelope = improved_envelope_calc.calculate_envelope(t, &envelope_context);
 
             // Serpentine wave with half-periods to ensure zero amplitude at endpoints
             let wave_phase = std::f64::consts::PI * half_periods * t;
@@ -592,7 +839,7 @@ impl SerpentineChannelStrategy {
                 std::f64::consts::PI // Negative phase: start with inverted sine wave (π phase)
             };
 
-            let wave_amplitude = amplitude * envelope * self.calculate_wave_amplitude(wave_phase, phase_offset);
+            let wave_amplitude = initial_amplitude * envelope * self.calculate_wave_amplitude(wave_phase, phase_offset);
 
             // Apply perpendicular offset
             let perp_x = -dy / channel_length;
@@ -612,6 +859,55 @@ impl SerpentineChannelStrategy {
             }
         }
 
+        // Simple validation: ensure minimum turn radius
+        let channel_diameter = 0.45;
+        let min_turn_radius = self.calculate_minimum_turn_radius(channel_diameter);
+        let min_amplitude_for_turns = min_turn_radius * 2.0;
+        let final_amplitude = initial_amplitude.max(min_amplitude_for_turns);
+
+        // If amplitude was adjusted, regenerate the path
+        if (final_amplitude - initial_amplitude).abs() > 0.1 {
+            // Regenerate path with validated amplitude
+            path.clear();
+            path.reserve(n_points);
+
+            for i in 0..n_points {
+                let t = i as f64 / (n_points - 1) as f64;
+
+                let base_x = p1.0 + t * dx;
+                let base_y = p1.1 + t * dy;
+
+                let node_distance = (dx * dx + dy * dy).sqrt();
+                let envelope_context = EnvelopeContext {
+                    channel_length,
+                    direction: (dx, dy),
+                    node_distance,
+                    adaptive_config: self.config.adaptive_config,
+                    gaussian_width_factor: self.config.gaussian_width_factor,
+                };
+                let improved_envelope_calc = AdaptiveGaussianEnvelopeCalculator;
+                let envelope = improved_envelope_calc.calculate_envelope(t, &envelope_context);
+
+                let wave_phase = std::f64::consts::PI * half_periods * t;
+                let phase_offset = if phase_direction > 0.0 { 0.0 } else { std::f64::consts::PI };
+                let wave_amplitude = final_amplitude * envelope * self.calculate_wave_amplitude(wave_phase, phase_offset);
+
+                let perp_x = -dy / channel_length;
+                let perp_y = dx / channel_length;
+
+                let x = base_x + wave_amplitude * perp_x;
+                let y = base_y + wave_amplitude * perp_y;
+
+                if i == 0 {
+                    path.push(p1);
+                } else if i == n_points - 1 {
+                    path.push(p2);
+                } else {
+                    path.push((x, y));
+                }
+            }
+        }
+
         path
     }
 
@@ -622,6 +918,16 @@ impl SerpentineChannelStrategy {
         p2: Point2D,
         context: &ChannelGenerationContext,
     ) -> Vec<Point2D> {
+        // Check if amplitude is below threshold - if so, return straight line
+        let initial_wavelength = self.config.wavelength_factor * context.geometry_config.channel_width;
+        let wavelength = self.validate_wavelength_for_diameter(initial_wavelength, context.geometry_config.channel_width);
+        let amplitude = self.calculate_adaptive_amplitude(p1, p2, context, wavelength);
+
+        if amplitude <= 0.0 {
+            // Return straight line when amplitude is too small for meaningful serpentines
+            return self.generate_straight_line_path(p1, p2, context.geometry_config.generation.serpentine_points);
+        }
+
         // Run optimization to find best parameters
         let optimization_result = optimize_serpentine_parameters(
             p1,
@@ -670,66 +976,17 @@ impl SerpentineChannelStrategy {
         self.generate_serpentine_path(p1, p2, &context)
     }
 
+    /// Generate a straight line path when serpentine amplitude is too small
+    fn generate_straight_line_path(&self, p1: Point2D, p2: Point2D, n_points: usize) -> Vec<Point2D> {
+        let dx = p2.0 - p1.0;
+        let dy = p2.1 - p1.1;
 
-
-    /// Calculate appropriate amplitude for serpentine channels
-    fn calculate_amplitude(
-        &self,
-        p1: Point2D,
-        p2: Point2D,
-        context: &ChannelGenerationContext,
-    ) -> f64 {
-        let constants = ConstantsRegistry::new();
-        let channel_center_y = (p1.1 + p2.1) / 2.0;
-        let box_height = context.box_dims.1;
-
-        // Calculate safe amplitude based on neighbors or box boundaries
-        let max_safe_amplitude = if let Some(neighbors) = context.neighbor_info {
-            if neighbors.is_empty() {
-                // No neighbors, use box boundaries
-                let distance_to_top = box_height - channel_center_y;
-                let distance_to_bottom = channel_center_y;
-                let wall_distance = distance_to_top.min(distance_to_bottom);
-                if self.config.adaptive_config.enable_wall_proximity_scaling {
-                    wall_distance * constants.get_wall_proximity_scaling_factor()
-                } else {
-                    wall_distance * self.config.fill_factor
-                }
-            } else {
-                // Find closest neighbor distances
-                let mut min_distance = f64::INFINITY;
-                for &neighbor_y in neighbors {
-                    let distance = (neighbor_y - channel_center_y).abs();
-                    if distance > constants.get_geometric_tolerance() {
-                        min_distance = min_distance.min(distance);
-                    }
-                }
-                let neighbor_amplitude = if self.config.adaptive_config.enable_neighbor_avoidance {
-                    (min_distance / 2.0) * constants.get_neighbor_avoidance_scaling_factor()
-                } else {
-                    (min_distance / 2.0) * self.config.fill_factor // Use fill factor
-                };
-                neighbor_amplitude
-            }
-        } else {
-            // Fallback to box boundaries
-            let distance_to_top = box_height - channel_center_y;
-            let distance_to_bottom = channel_center_y;
-            let wall_distance = distance_to_top.min(distance_to_bottom);
-            if self.config.adaptive_config.enable_wall_proximity_scaling {
-                wall_distance * constants.get_wall_proximity_scaling_factor()
-            } else {
-                wall_distance * self.config.fill_factor
-            }
-        };
-
-        // Apply branch factor and fill factor
-        let constants = ConstantsRegistry::new();
-        let branch_factor = (context.total_branches as f64).powf(constants.get_branch_factor_exponent()).max(1.0);
-        let fill_factor = self.config.fill_factor / branch_factor;
-        let enhanced_fill_factor = (fill_factor * constants.get_fill_factor_enhancement()).min(0.95);
-        
-        (max_safe_amplitude * enhanced_fill_factor).max(context.geometry_config.channel_width * 0.5)
+        (0..n_points)
+            .map(|i| {
+                let t = i as f64 / (n_points - 1) as f64;
+                (p1.0 + t * dx, p1.1 + t * dy)
+            })
+            .collect()
     }
 
     /// Calculate wave phase direction for perfect bilateral mirror symmetry using enhanced symmetry system
@@ -766,65 +1023,12 @@ impl SerpentineChannelStrategy {
             Ok(phase_direction) => phase_direction,
             Err(_) => {
                 // Fallback to legacy calculation if enhanced system fails
-                self.calculate_legacy_phase_direction(p1, p2, box_dims)
+                self.calculate_wave_phase_direction(p1, p2, box_dims)
             }
         }
     }
 
-    /// Legacy phase direction calculation for fallback
-    fn calculate_legacy_phase_direction(&self, p1: Point2D, p2: Point2D, box_dims: (f64, f64)) -> f64 {
-        let dx = p2.0 - p1.0;
-        let dy = p2.1 - p1.1;
-        let box_center_x = box_dims.0 / 2.0;
-        let box_center_y = box_dims.1 / 2.0;
 
-        // Determine if this is a split (left half) or merge (right half) based on x-position
-        let channel_center_x = (p1.0 + p2.0) / 2.0;
-        let is_left_half = channel_center_x < box_center_x;
-
-        // Check if this is a mostly horizontal channel
-        let is_mostly_horizontal = dy.abs() < dx.abs() * 0.5;
-
-        if is_mostly_horizontal {
-            // For horizontal channels, create perfect bilateral symmetry
-            let channel_center_y = (p1.1 + p2.1) / 2.0;
-            let is_above_center = channel_center_y > box_center_y;
-
-            // Key insight: For perfect bilateral symmetry, the phase direction should be
-            // consistent across the vertical centerline but opposite for upper/lower branches
-            if is_above_center {
-                1.0 // Upper channels: positive phase (consistent across left/right)
-            } else {
-                -1.0 // Lower channels: negative phase (consistent across left/right)
-            }
-        } else {
-            // For angled channels (splits/merges), create perfect bilateral mirror symmetry
-            // Key insight: The right half should be a PERFECT MIRROR of the left half
-
-            if is_left_half {
-                // Left half (splits): Use position relative to center for consistent phasing
-                let channel_center_y = (p1.1 + p2.1) / 2.0;
-                let is_above_center = channel_center_y > box_center_y;
-
-                if is_above_center {
-                    1.0 // Upper branch: positive phase
-                } else {
-                    -1.0 // Lower branch: negative phase
-                }
-            } else {
-                // Right half (merges): MIRROR the left half exactly
-                // For perfect bilateral symmetry, use the same logic as left half
-                let channel_center_y = (p1.1 + p2.1) / 2.0;
-                let is_above_center = channel_center_y > box_center_y;
-
-                if is_above_center {
-                    1.0 // Upper branch: positive phase (mirrors left upper)
-                } else {
-                    -1.0 // Lower branch: negative phase (mirrors left lower)
-                }
-            }
-        }
-    }
 }
 
 /// Strategy for creating arc channels
@@ -896,21 +1100,22 @@ impl ArcChannelStrategy {
         temp_strategy.generate_arc_path(p1, p2, box_dims)
     }
 
-    /// Generate a smooth arc path between two points
+    /// Generate a smooth arc path between two points using zero-copy techniques
     fn generate_arc_path(&self, p1: Point2D, p2: Point2D, box_dims: (f64, f64)) -> Vec<Point2D> {
         let constants = ConstantsRegistry::new();
-        let mut path = Vec::with_capacity(self.config.smoothness + 2);
+        let num_points = self.config.smoothness + 2;
 
         let dx = p2.0 - p1.0;
         let dy = p2.1 - p1.1;
-        let distance = (dx * dx + dy * dy).sqrt();
+        let distance = dx.hypot(dy); // More efficient than sqrt(dx*dx + dy*dy)
 
         // For very short channels or zero curvature, return straight line
         if distance < constants.get_geometric_tolerance() || self.config.curvature_factor < constants.get_geometric_tolerance() {
-            path.push(p1);
-            path.push(p2);
-            return path;
+            return vec![p1, p2];
         }
+
+        // Pre-allocate with exact capacity to avoid reallocations
+        let mut path = Vec::with_capacity(num_points);
         
         // Calculate control point for the arc
         let mid_x = (p1.0 + p2.0) / 2.0;
@@ -1119,7 +1324,7 @@ impl ArcChannelStrategy {
 /// This factory implements the Factory pattern to create appropriate
 /// channel type strategies based on the provided configuration.
 /// It encapsulates the logic for determining which strategy to use
-/// and handles complex configurations like Smart and MixedByPosition.
+/// and handles complex configurations like Adaptive and MixedByPosition.
 pub struct ChannelTypeFactory;
 
 impl ChannelTypeFactory {
@@ -1177,8 +1382,8 @@ impl ChannelTypeFactory {
                 }
             }
 
-            ChannelTypeConfig::Smart { serpentine_config, arc_config, frustum_config } => {
-                Self::create_smart_strategy(from, to, box_dims, *serpentine_config, *arc_config, *frustum_config)
+            ChannelTypeConfig::Adaptive { serpentine_config, arc_config, frustum_config } => {
+                Self::create_adaptive_strategy(from, to, box_dims, *serpentine_config, *arc_config, *frustum_config)
             }
 
             ChannelTypeConfig::SmoothSerpentineWithTransitions { serpentine_config, smooth_straight_config } => {
@@ -1193,8 +1398,8 @@ impl ChannelTypeFactory {
         }
     }
 
-    /// Create a smart strategy based on channel characteristics
-    fn create_smart_strategy(
+    /// Create an adaptive strategy based on channel characteristics
+    fn create_adaptive_strategy(
         from: Point2D,
         to: Point2D,
         box_dims: (f64, f64),
@@ -1369,7 +1574,7 @@ impl FrustumChannelStrategy {
         Self { config }
     }
 
-    /// Generate the centerline path for the frustum channel
+    /// Generate the centerline path for the frustum channel using iterator combinators
     ///
     /// Creates a straight line path from start to end point with the specified
     /// number of points for smooth width transitions.
@@ -1381,16 +1586,17 @@ impl FrustumChannelStrategy {
     /// # Returns
     /// * `Vec<Point2D>` - The centerline path points
     fn generate_centerline_path(&self, from: Point2D, to: Point2D) -> Vec<Point2D> {
-        let mut path = Vec::with_capacity(self.config.smoothness);
+        let dx = to.0 - from.0;
+        let dy = to.1 - from.1;
+        let inv_smoothness = 1.0 / (self.config.smoothness - 1) as f64;
 
-        for i in 0..self.config.smoothness {
-            let t = i as f64 / (self.config.smoothness - 1) as f64;
-            let x = from.0 + (to.0 - from.0) * t;
-            let y = from.1 + (to.1 - from.1) * t;
-            path.push((x, y));
-        }
-
-        path
+        // Use iterator combinators for zero-copy generation
+        (0..self.config.smoothness)
+            .map(|i| {
+                let t = i as f64 * inv_smoothness;
+                (from.0 + dx * t, from.1 + dy * t)
+            })
+            .collect()
     }
 
     /// Generate width values corresponding to each point in the path

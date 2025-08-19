@@ -255,11 +255,11 @@ impl GeometryGenerator {
 
         let first_half_lines = self.generate_first_half(splits);
 
-        // Collect y-coordinates for dynamic amplitude calculation
-        let mut y_coords_for_amplitude: Vec<f64> = Vec::with_capacity(first_half_lines.len());
-        for (p1, p2) in &first_half_lines {
-            y_coords_for_amplitude.push(f64::midpoint(p1.1, p2.1));
-        }
+        // Collect y-coordinates for dynamic amplitude calculation using iterator combinators
+        let y_coords_for_amplitude: Vec<f64> = first_half_lines
+            .iter()
+            .map(|(p1, p2)| f64::midpoint(p1.1, p2.1))
+            .collect();
 
         for (p1, p2) in &first_half_lines {
             self.add_channel_with_neighbors(*p1, *p2, &y_coords_for_amplitude);
@@ -326,7 +326,7 @@ impl GeometryGenerator {
             for i in 0..n_branches {
                 let offset = (i as f64 - (n_branches - 1) as f64 / 2.0) * y_separation;
                 let y_new = y_center + offset;
-                
+
                 new_lines.push(((current_x, *y_center), (current_x + dx, y_new)));
                 next_y_coords.push(y_new);
                 next_y_ranges.push(y_separation);
@@ -559,7 +559,7 @@ mod tests {
     use crate::geometry::builders::{ChannelExt, NodeExt};
 
     #[test]
-    fn test_enhanced_generator_with_performance_metadata() {
+    fn test_generator_with_performance_metadata() {
         let metadata_config = MetadataConfig {
             track_performance: true,
             track_optimization: false,

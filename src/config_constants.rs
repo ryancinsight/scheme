@@ -785,6 +785,288 @@ impl VisualizationConstants {
     }
 }
 
+/// Collision detection constants previously hardcoded
+pub struct CollisionConstants {
+    /// Minimum channel distance for collision detection
+    pub min_channel_distance: ConfigurableParameter<f64>,
+
+    /// Minimum wall distance for collision detection
+    pub min_wall_distance: ConfigurableParameter<f64>,
+
+    /// Minimum wall thickness for manufacturing constraints
+    pub min_wall_thickness: ConfigurableParameter<f64>,
+
+    /// Safety margin factor for collision detection
+    pub safety_margin_factor: ConfigurableParameter<f64>,
+
+    /// Maximum reduction factor for collision avoidance
+    pub max_reduction_factor: ConfigurableParameter<f64>,
+
+    /// Detection sensitivity for collision detection
+    pub detection_sensitivity: ConfigurableParameter<f64>,
+
+    /// Neighbor scale factor for adaptive collision detection
+    pub neighbor_scale_factor: ConfigurableParameter<f64>,
+
+    /// Minimum distance threshold for adaptive collision detection
+    pub min_distance_threshold: ConfigurableParameter<f64>,
+
+    /// Maximum adjustment factor for adaptive collision detection
+    pub max_adjustment_factor: ConfigurableParameter<f64>,
+
+    /// Proximity divisor for collision detection
+    pub proximity_divisor: ConfigurableParameter<f64>,
+
+    /// Minimum proximity factor for collision detection
+    pub min_proximity_factor: ConfigurableParameter<f64>,
+
+    /// Maximum proximity factor for collision detection
+    pub max_proximity_factor: ConfigurableParameter<f64>,
+
+    /// Branch adjustment divisor for collision detection
+    pub branch_adjustment_divisor: ConfigurableParameter<f64>,
+
+    /// Maximum sensitivity multiplier for collision detection
+    pub max_sensitivity_multiplier: ConfigurableParameter<f64>,
+
+    /// Long channel threshold for collision detection
+    pub long_channel_threshold: ConfigurableParameter<f64>,
+
+    /// Long channel reduction multiplier for collision detection
+    pub long_channel_reduction_multiplier: ConfigurableParameter<f64>,
+
+    /// Maximum reduction limit for collision detection
+    pub max_reduction_limit: ConfigurableParameter<f64>,
+}
+
+impl CollisionConstants {
+    /// Create default collision constants
+    pub fn default() -> Self {
+        Self {
+            min_channel_distance: ConfigurableParameter::new(
+                2.0,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.1, 10.0),
+                ]),
+                ParameterMetadata::new(
+                    "min_channel_distance",
+                    "Minimum distance between channels for collision detection",
+                    "collision"
+                ).with_units("mm")
+            ),
+
+            min_wall_thickness: ConfigurableParameter::new(
+                0.45,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.1, 5.0),
+                ]),
+                ParameterMetadata::new(
+                    "min_wall_thickness",
+                    "Minimum wall thickness between channels for manufacturing constraints",
+                    "collision"
+                ).with_units("mm")
+            ),
+
+            min_wall_distance: ConfigurableParameter::new(
+                1.0,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.1, 5.0),
+                ]),
+                ParameterMetadata::new(
+                    "min_wall_distance",
+                    "Minimum distance from walls for collision detection",
+                    "collision"
+                ).with_units("mm")
+            ),
+
+            safety_margin_factor: ConfigurableParameter::new(
+                1.2,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(1.0, 3.0),
+                ]),
+                ParameterMetadata::new(
+                    "safety_margin_factor",
+                    "Safety margin multiplier for collision detection",
+                    "collision"
+                ).with_units("ratio")
+            ),
+
+            max_reduction_factor: ConfigurableParameter::new(
+                0.8,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.1, 1.0),
+                ]),
+                ParameterMetadata::new(
+                    "max_reduction_factor",
+                    "Maximum reduction factor for collision avoidance",
+                    "collision"
+                ).with_units("ratio")
+            ),
+
+            detection_sensitivity: ConfigurableParameter::new(
+                1.0,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.1, 5.0),
+                ]),
+                ParameterMetadata::new(
+                    "detection_sensitivity",
+                    "Sensitivity factor for collision detection",
+                    "collision"
+                ).with_units("ratio")
+            ),
+
+            neighbor_scale_factor: ConfigurableParameter::new(
+                0.8,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.1, 2.0),
+                ]),
+                ParameterMetadata::new(
+                    "neighbor_scale_factor",
+                    "Scale factor for neighbor-based collision detection",
+                    "collision"
+                ).with_units("ratio")
+            ),
+
+            min_distance_threshold: ConfigurableParameter::new(
+                1.0,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.1, 5.0),
+                ]),
+                ParameterMetadata::new(
+                    "min_distance_threshold",
+                    "Minimum distance threshold for adaptive collision detection",
+                    "collision"
+                ).with_units("mm")
+            ),
+
+            max_adjustment_factor: ConfigurableParameter::new(
+                2.0,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(1.0, 5.0),
+                ]),
+                ParameterMetadata::new(
+                    "max_adjustment_factor",
+                    "Maximum adjustment factor for adaptive collision detection",
+                    "collision"
+                ).with_units("ratio")
+            ),
+
+            proximity_divisor: ConfigurableParameter::new(
+                10.0,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(1.0, 50.0),
+                ]),
+                ParameterMetadata::new(
+                    "proximity_divisor",
+                    "Divisor for proximity calculations in collision detection",
+                    "collision"
+                ).with_units("ratio")
+            ),
+
+            min_proximity_factor: ConfigurableParameter::new(
+                0.5,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.1, 1.0),
+                ]),
+                ParameterMetadata::new(
+                    "min_proximity_factor",
+                    "Minimum proximity factor for collision detection",
+                    "collision"
+                ).with_units("ratio")
+            ),
+
+            max_proximity_factor: ConfigurableParameter::new(
+                1.0,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.5, 2.0),
+                ]),
+                ParameterMetadata::new(
+                    "max_proximity_factor",
+                    "Maximum proximity factor for collision detection",
+                    "collision"
+                ).with_units("ratio")
+            ),
+
+            branch_adjustment_divisor: ConfigurableParameter::new(
+                4.0,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(1.0, 20.0),
+                ]),
+                ParameterMetadata::new(
+                    "branch_adjustment_divisor",
+                    "Divisor for branch-based adjustments in collision detection",
+                    "collision"
+                ).with_units("ratio")
+            ),
+
+            max_sensitivity_multiplier: ConfigurableParameter::new(
+                2.0,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(1.0, 10.0),
+                ]),
+                ParameterMetadata::new(
+                    "max_sensitivity_multiplier",
+                    "Maximum sensitivity multiplier for collision detection",
+                    "collision"
+                ).with_units("ratio")
+            ),
+
+            long_channel_threshold: ConfigurableParameter::new(
+                50.0,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(10.0, 200.0),
+                ]),
+                ParameterMetadata::new(
+                    "long_channel_threshold",
+                    "Threshold for considering a channel as long in collision detection",
+                    "collision"
+                ).with_units("mm")
+            ),
+
+            long_channel_reduction_multiplier: ConfigurableParameter::new(
+                1.2,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(1.0, 3.0),
+                ]),
+                ParameterMetadata::new(
+                    "long_channel_reduction_multiplier",
+                    "Reduction multiplier for long channels in collision detection",
+                    "collision"
+                ).with_units("ratio")
+            ),
+
+            max_reduction_limit: ConfigurableParameter::new(
+                0.95,
+                ParameterConstraints::all(vec![
+                    ParameterConstraints::<f64>::positive(),
+                    ParameterConstraints::range(0.5, 1.0),
+                ]),
+                ParameterMetadata::new(
+                    "max_reduction_limit",
+                    "Maximum reduction limit for collision detection",
+                    "collision"
+                ).with_units("ratio")
+            ),
+        }
+    }
+}
+
 /// Central constants registry containing all configuration constants
 pub struct ConstantsRegistry {
     /// Strategy selection thresholds
@@ -801,6 +1083,9 @@ pub struct ConstantsRegistry {
 
     /// Visualization constants
     pub visualization: VisualizationConstants,
+
+    /// Collision detection constants
+    pub collision: CollisionConstants,
 }
 
 impl ConstantsRegistry {
@@ -812,6 +1097,7 @@ impl ConstantsRegistry {
             geometry_generation: GeometryGenerationConstants::default(),
             optimization: OptimizationConstants::default(),
             visualization: VisualizationConstants::default(),
+            collision: CollisionConstants::default(),
         }
     }
 
@@ -863,92 +1149,97 @@ impl ConstantsRegistry {
 
     /// Get the minimum channel distance for collision detection
     pub fn get_min_channel_distance(&self) -> f64 {
-        2.0 // TODO: Add to collision constants
+        *self.collision.min_channel_distance.get_raw_value()
     }
 
     /// Get the minimum wall distance for collision detection
     pub fn get_min_wall_distance(&self) -> f64 {
-        1.0 // TODO: Add to collision constants
+        *self.collision.min_wall_distance.get_raw_value()
+    }
+
+    /// Get the minimum wall thickness for manufacturing constraints
+    pub fn get_min_wall_thickness(&self) -> f64 {
+        *self.collision.min_wall_thickness.get_raw_value()
     }
 
     /// Get the safety margin factor for collision detection
     pub fn get_safety_margin_factor(&self) -> f64 {
-        1.2 // TODO: Add to collision constants
+        *self.collision.safety_margin_factor.get_raw_value()
     }
 
     /// Get the maximum reduction factor for collision avoidance
     pub fn get_max_reduction_factor(&self) -> f64 {
-        0.8 // TODO: Add to collision constants
+        *self.collision.max_reduction_factor.get_raw_value()
     }
 
     /// Get the detection sensitivity for collision detection
     pub fn get_detection_sensitivity(&self) -> f64 {
-        1.0 // TODO: Add to collision constants
+        *self.collision.detection_sensitivity.get_raw_value()
     }
 
     /// Get the neighbor scale factor for adaptive collision detection
     pub fn get_neighbor_scale_factor(&self) -> f64 {
-        0.8 // TODO: Add to collision constants
+        *self.collision.neighbor_scale_factor.get_raw_value()
     }
 
     /// Get the minimum distance threshold for adaptive collision detection
     pub fn get_min_distance_threshold(&self) -> f64 {
-        1.0 // TODO: Add to collision constants
+        *self.collision.min_distance_threshold.get_raw_value()
     }
 
     /// Get the maximum adjustment factor for adaptive collision detection
     pub fn get_max_adjustment_factor(&self) -> f64 {
-        2.0 // TODO: Add to collision constants
+        *self.collision.max_adjustment_factor.get_raw_value()
     }
 
     /// Get the maximum number of optimization iterations
     pub fn get_max_optimization_iterations(&self) -> usize {
-        50 // TODO: Add to optimization constants
+        *self.optimization.max_optimization_iterations.get_raw_value()
     }
 
     /// Get the optimization tolerance
     pub fn get_optimization_tolerance(&self) -> f64 {
-        1e-6 // TODO: Add to optimization constants
+        *self.optimization.convergence_tolerance.get_raw_value()
     }
 
     /// Get the proximity divisor for collision detection
     pub fn get_proximity_divisor(&self) -> f64 {
-        10.0 // TODO: Add to collision constants
+        *self.collision.proximity_divisor.get_raw_value()
     }
 
     /// Get the minimum proximity factor for collision detection
     pub fn get_min_proximity_factor(&self) -> f64 {
-        0.5 // TODO: Add to collision constants
+        *self.collision.min_proximity_factor.get_raw_value()
     }
 
     /// Get the maximum proximity factor for collision detection
     pub fn get_max_proximity_factor(&self) -> f64 {
-        1.0 // TODO: Add to collision constants
+        *self.collision.max_proximity_factor.get_raw_value()
     }
 
     /// Get the branch adjustment divisor for collision detection
     pub fn get_branch_adjustment_divisor(&self) -> f64 {
-        4.0 // TODO: Add to collision constants
+        *self.collision.branch_adjustment_divisor.get_raw_value()
     }
 
     /// Get the maximum sensitivity multiplier for collision detection
     pub fn get_max_sensitivity_multiplier(&self) -> f64 {
-        2.0 // TODO: Add to collision constants
+        *self.collision.max_sensitivity_multiplier.get_raw_value()
     }
 
     /// Get the long channel threshold for collision detection
     pub fn get_long_channel_threshold(&self) -> f64 {
-        50.0 // TODO: Add to collision constants
+        *self.collision.long_channel_threshold.get_raw_value()
     }
 
     /// Get the long channel reduction multiplier for collision detection
     pub fn get_long_channel_reduction_multiplier(&self) -> f64 {
-        1.2 // TODO: Add to collision constants
+        *self.collision.long_channel_reduction_multiplier.get_raw_value()
     }
 
     /// Get the maximum reduction limit for collision detection
     pub fn get_max_reduction_limit(&self) -> f64 {
-        0.95 // TODO: Add to collision constants
+        *self.collision.max_reduction_limit.get_raw_value()
     }
 
     /// Get the fill factor enhancement multiplier

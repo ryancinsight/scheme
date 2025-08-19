@@ -175,16 +175,16 @@ fn demonstrate_width_configurations() -> Result<(), Box<dyn std::error::Error>> 
 /// Demonstrate integration with other channel types
 fn demonstrate_mixed_channel_systems() -> Result<(), Box<dyn std::error::Error>> {
     println!("4️⃣  Demonstrating Mixed Channel Systems");
-    println!("   Testing smart selection with frustum channels included");
-    
-    // Smart configuration that can select frustum channels
-    let smart_config = ChannelTypeConfig::default(); // Uses Smart with all channel types
+    println!("   Testing adaptive selection with frustum channels included");
+
+    // Adaptive configuration that can select frustum channels
+    let adaptive_config = ChannelTypeConfig::default(); // Uses Adaptive with all channel types
     
     let system = create_geometry(
         (200.0, 80.0),
         &[SplitType::Bifurcation, SplitType::Trifurcation],
         &GeometryConfig::default(),
-        &smart_config,
+        &adaptive_config,
     );
     plot_geometry(&system, "outputs/mixed_channel_system.svg")?;
     println!("   ✅ Mixed system: saved to mixed_channel_system.svg");

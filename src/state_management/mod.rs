@@ -25,7 +25,7 @@
 pub mod bilateral_symmetry;
 pub mod constraints;
 pub mod context_consolidation;
-pub mod error_handling_enhancements;
+pub mod error_handling_utilities;
 pub mod parameters;
 pub mod registry;
 pub mod managers;

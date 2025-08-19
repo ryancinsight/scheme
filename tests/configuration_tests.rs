@@ -192,14 +192,14 @@ fn test_configuration_presets() {
 fn test_channel_type_config_builder() {
     let builder = ChannelTypeConfigBuilder::new();
     
-    // Test building smart configuration
-    let smart_config = builder.build_smart();
-    match smart_config {
-        ChannelTypeConfig::Smart { serpentine_config, arc_config, .. } => {
+    // Test building adaptive configuration
+    let adaptive_config = builder.build_adaptive();
+    match adaptive_config {
+        ChannelTypeConfig::Adaptive { serpentine_config, arc_config, .. } => {
             assert_eq!(serpentine_config.fill_factor, constants::DEFAULT_FILL_FACTOR);
             assert_eq!(arc_config.curvature_factor, constants::DEFAULT_CURVATURE_FACTOR);
         },
-        _ => panic!("Expected Smart configuration"),
+        _ => panic!("Expected Adaptive configuration"),
     }
     
     // Test building mixed by position configuration

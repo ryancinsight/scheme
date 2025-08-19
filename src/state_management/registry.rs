@@ -233,12 +233,48 @@ impl ParameterRegistry {
         self.symmetry_manager.validate_all()
             .map_err(StateManagementError::Parameter)?;
         
-        // Validate global rules
-        // TODO: Implement cross-manager validation
+        // Validate global rules and cross-manager relationships
+        self.validate_cross_manager_relationships()?;
         
         Ok(())
     }
-    
+
+    /// Validate cross-manager relationships and dependencies
+    fn validate_cross_manager_relationships(&self) -> StateManagementResult<()> {
+        // For now, implement basic cross-manager validation
+        // This can be expanded as needed for specific parameter relationships
+
+        // Validate that geometry parameters are within reasonable bounds
+        if let Ok(channel_width_any) = self.geometry_manager.get_parameter("channel_width") {
+            if let Some(width) = channel_width_any.downcast_ref::<f64>() {
+                if *width <= 0.0 {
+                    return Err(StateManagementError::Validation(
+                        crate::state_management::errors::ValidationError::rule_failed(
+                            "channel_width",
+                            "Channel width must be positive"
+                        )
+                    ));
+                }
+            }
+        }
+
+        // Validate that serpentine parameters are reasonable
+        if let Ok(wavelength_any) = self.serpentine_manager.get_parameter("wavelength_factor") {
+            if let Some(wavelength) = wavelength_any.downcast_ref::<f64>() {
+                if *wavelength <= 0.0 {
+                    return Err(StateManagementError::Validation(
+                        crate::state_management::errors::ValidationError::rule_failed(
+                            "wavelength_factor",
+                            "Wavelength factor must be positive"
+                        )
+                    ));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Update parameters using the provided updates
     pub fn update_parameters(&mut self, updates: ParameterUpdates) -> StateManagementResult<()> {
         self.check_not_locked()?;

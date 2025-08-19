@@ -128,27 +128,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 5. Smart Mixed Channel Selection
     println!("\n🧠 Smart Mixed Channel Selection:");
     
-    let smart_configs = vec![
-        ("smart_default", ChannelTypeConfig::Smart {
+    let adaptive_configs = vec![
+        ("adaptive_default", ChannelTypeConfig::Adaptive {
             serpentine_config: scheme::config::SerpentineConfig::default(),
             arc_config: ArcConfig::default(),
             frustum_config: scheme::config::FrustumConfig::default(),
-        }, "Default smart selection"),
-        ("smart_pronounced", ChannelTypeConfig::Smart {
+        }, "Default adaptive selection"),
+        ("adaptive_pronounced", ChannelTypeConfig::Adaptive {
             serpentine_config: presets::smooth_serpentine(),
             arc_config: presets::pronounced_arcs(),
             frustum_config: scheme::config::FrustumConfig::default(),
         }, "Pronounced curves with smooth serpentines"),
-        ("smart_mixed_position", ChannelTypeConfig::MixedByPosition {
+        ("adaptive_mixed_position", ChannelTypeConfig::MixedByPosition {
             middle_zone_fraction: 0.4,
             serpentine_config: scheme::config::SerpentineConfig::default(),
             arc_config: ArcConfig::default(),
         }, "Position-based channel selection"),
     ];
 
-    for (name, smart_config, description) in smart_configs {
-        let system = create_geometry(box_dims, &splits, &config, &smart_config);
-        let output = format!("outputs/mixed/smart_selection/{}.png", name);
+    for (name, adaptive_config, description) in adaptive_configs {
+        let system = create_geometry(box_dims, &splits, &config, &adaptive_config);
+        let output = format!("outputs/mixed/adaptive_selection/{}.png", name);
         plot_geometry(&system, &output)?;
         println!("   ✓ {}: {} -> {}", name, description, output);
     }

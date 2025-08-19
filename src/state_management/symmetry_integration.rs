@@ -22,13 +22,13 @@ use crate::{
 };
 use std::collections::HashMap;
 
-/// Enhanced parameter manager with bilateral symmetry integration
+/// Parameter manager with bilateral symmetry integration
 pub struct SymmetryIntegratedParameterManager {
-    /// Serpentine parameter manager with symmetry enhancements
-    pub serpentine_manager: EnhancedSerpentineManager,
-    
-    /// Arc parameter manager with symmetry enhancements
-    pub arc_manager: EnhancedArcManager,
+    /// Serpentine parameter manager with symmetry awareness
+    pub serpentine_manager: SymmetryAwareSerpentineManager,
+
+    /// Arc parameter manager with symmetry awareness
+    pub arc_manager: SymmetryAwareArcManager,
     
     /// Global symmetry configuration
     pub symmetry_config: BilateralSymmetryConfig,
@@ -54,8 +54,8 @@ impl SymmetryIntegratedParameterManager {
         let phase_calculator = BilateralPhaseDirectionCalculator::new(symmetry_config.clone());
         
         Self {
-            serpentine_manager: EnhancedSerpentineManager::new(symmetry_config.clone()),
-            arc_manager: EnhancedArcManager::new(symmetry_config.clone()),
+            serpentine_manager: SymmetryAwareSerpentineManager::new(symmetry_config.clone()),
+            arc_manager: SymmetryAwareArcManager::new(symmetry_config.clone()),
             symmetry_config,
             phase_calculator,
             constants: ConstantsRegistry::new(),
@@ -68,8 +68,8 @@ impl SymmetryIntegratedParameterManager {
         let phase_calculator = BilateralPhaseDirectionCalculator::new(config.clone());
         
         Self {
-            serpentine_manager: EnhancedSerpentineManager::new(config.clone()),
-            arc_manager: EnhancedArcManager::new(config.clone()),
+            serpentine_manager: SymmetryAwareSerpentineManager::new(config.clone()),
+            arc_manager: SymmetryAwareArcManager::new(config.clone()),
             symmetry_config: config,
             phase_calculator,
             constants: ConstantsRegistry::new(),
@@ -240,9 +240,9 @@ impl SymmetryIntegratedParameterManager {
     }
 }
 
-/// Enhanced serpentine parameter manager with symmetry awareness
+/// Serpentine parameter manager with symmetry awareness
 #[derive(Debug)]
-pub struct EnhancedSerpentineManager {
+pub struct SymmetryAwareSerpentineManager {
     /// Base serpentine manager
     pub base_manager: SerpentineParameterManager,
     
@@ -256,8 +256,8 @@ pub struct EnhancedSerpentineManager {
     pub symmetry_config: BilateralSymmetryConfig,
 }
 
-impl EnhancedSerpentineManager {
-    /// Create a new enhanced serpentine manager
+impl SymmetryAwareSerpentineManager {
+    /// Create a new symmetry-aware serpentine manager
     #[must_use]
     pub fn new(symmetry_config: BilateralSymmetryConfig) -> Self {
         Self {
@@ -310,9 +310,9 @@ impl EnhancedSerpentineManager {
     }
 }
 
-/// Enhanced arc parameter manager with symmetry awareness
+/// Arc parameter manager with symmetry awareness
 #[derive(Debug)]
-pub struct EnhancedArcManager {
+pub struct SymmetryAwareArcManager {
     /// Base arc manager
     pub base_manager: ArcParameterManager,
     
@@ -320,8 +320,8 @@ pub struct EnhancedArcManager {
     pub symmetry_config: BilateralSymmetryConfig,
 }
 
-impl EnhancedArcManager {
-    /// Create a new enhanced arc manager
+impl SymmetryAwareArcManager {
+    /// Create a new symmetry-aware arc manager
     #[must_use]
     pub fn new(symmetry_config: BilateralSymmetryConfig) -> Self {
         Self {
@@ -477,9 +477,9 @@ mod tests {
     }
     
     #[test]
-    fn test_enhanced_serpentine_manager() {
+    fn test_symmetry_aware_serpentine_manager() {
         let config = BilateralSymmetryConfig::default();
-        let manager = EnhancedSerpentineManager::new(config.clone());
+        let manager = SymmetryAwareSerpentineManager::new(config.clone());
         
         let context = ChannelGenerationContext::new(
             GeometryConfig::default(),

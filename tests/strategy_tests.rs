@@ -222,12 +222,12 @@ fn test_factory_mixed_by_position() {
     }
 }
 
-/// Test ChannelTypeFactory with Smart configuration
+/// Test ChannelTypeFactory with Adaptive configuration
 #[test]
-fn test_factory_smart() {
+fn test_factory_adaptive() {
     let serpentine_config = SerpentineConfig::default();
     let arc_config = ArcConfig::default();
-    let config = ChannelTypeConfig::Smart {
+    let config = ChannelTypeConfig::Adaptive {
         serpentine_config,
         arc_config,
         frustum_config: FrustumConfig::default(),

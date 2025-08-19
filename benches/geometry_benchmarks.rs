@@ -98,7 +98,7 @@ fn bench_channel_strategies(c: &mut Criterion) {
         ("all_straight", ChannelTypeConfig::AllStraight),
         ("all_serpentine", ChannelTypeConfig::AllSerpentine(SerpentineConfig::default())),
         ("all_arcs", ChannelTypeConfig::AllArcs(ArcConfig::default())),
-        ("smart_mixed", ChannelTypeConfig::Smart {
+        ("adaptive_mixed", ChannelTypeConfig::Adaptive {
             serpentine_config: SerpentineConfig::default(),
             arc_config: ArcConfig::default(),
             frustum_config: FrustumConfig::default(),

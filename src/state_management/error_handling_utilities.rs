@@ -1,6 +1,6 @@
-//! Enhanced error handling utilities for the state management system
+//! Error handling utilities for the state management system
 //!
-//! This module provides comprehensive error handling enhancements that improve
+//! This module provides comprehensive error handling utilities that improve
 //! error context, validation, and recovery mechanisms throughout the state
 //! management system, following SOLID, CUPID, and GRASP design principles.
 

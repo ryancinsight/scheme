@@ -49,7 +49,7 @@ fn create_test_geometries() -> Vec<(String, scheme::geometry::ChannelSystem)> {
             SplitType::Trifurcation
         ],
         &config,
-        &ChannelTypeConfig::Smart {
+        &ChannelTypeConfig::Adaptive {
             serpentine_config: SerpentineConfig::default(),
             arc_config: ArcConfig::default(),
             frustum_config: FrustumConfig::default(),

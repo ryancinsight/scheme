@@ -226,10 +226,11 @@ impl<'a, DB: DrawingBackend> GeometricDrawer for PlottersDrawer<'a, DB> {
                 constraint: "Path must have at least 2 points".to_string(),
             });
         }
-        
+
         if let Some(chart) = &mut self.chart {
+            // Use slice directly instead of cloning to Vec - zero-copy optimization
             chart.draw_series(std::iter::once(PathElement::new(
-                points.to_vec(),
+                points, // Pass slice directly instead of points.to_vec()
                 convert_color(&style.color).stroke_width(style.width as u32)
             )))
             .map_err(|e| VisualizationError::rendering_error(&e.to_string()))?;

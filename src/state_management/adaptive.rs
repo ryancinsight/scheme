@@ -227,36 +227,7 @@ where
     A: AdaptiveParameter<T, Context>,
 {}
 
-/// Legacy adapter for backward compatibility with old trait signature
-pub trait LegacyAdaptiveParameter<T, Context>: Debug + Send + Sync {
-    /// Legacy adapt method that returns T directly
-    fn adapt_legacy(&self, base_value: T, context: &Context) -> T;
 
-    /// Check if adaptation is enabled
-    fn is_adaptive(&self) -> bool;
-
-    /// Get adaptation description
-    fn adaptation_description(&self) -> String;
-}
-
-/// Blanket implementation to convert new AdaptiveParameter to legacy interface
-impl<T, Context, A> LegacyAdaptiveParameter<T, Context> for A
-where
-    A: AdaptiveParameter<T, Context>,
-    T: Clone,
-{
-    fn adapt_legacy(&self, base_value: T, context: &Context) -> T {
-        self.adapt_or_base(base_value, context)
-    }
-
-    fn is_adaptive(&self) -> bool {
-        AdaptiveParameter::is_adaptive(self)
-    }
-
-    fn adaptation_description(&self) -> String {
-        AdaptiveParameter::adaptation_description(self)
-    }
-}
 
 /// Trait for parameters that can adapt based on context with proper error handling
 pub trait AdaptiveParameter<T, Context>: Debug + Send + Sync {
